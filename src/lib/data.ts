@@ -8,6 +8,18 @@ export const KEY_LOCATIONS: KeyLocation[] = [
   { id: "montreal", name: "Montréal, QC", lat: 45.5017, lng: -73.5673 },
 ];
 
+// Currency symbol lookup
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: "$", EUR: "€", GBP: "£", CAD: "CA$", JPY: "¥",
+};
+
+export function formatCost(cost: number, currency: string, hasAdditionalTiers: boolean): string {
+  if (cost === 0) return hasAdditionalTiers ? "FREE+" : "FREE";
+  const symbol = CURRENCY_SYMBOLS[currency] || currency + " ";
+  const price = Number.isInteger(cost) ? cost.toString() : cost.toFixed(2);
+  return `${symbol}${price}${hasAdditionalTiers ? "+" : ""}`;
+}
+
 // Mock events — will be replaced by Supabase queries
 export const MOCK_EVENTS: LexerEvent[] = [
   {
@@ -22,6 +34,9 @@ export const MOCK_EVENTS: LexerEvent[] = [
     recurrent: true,
     inviteUrl: "https://example.com/neon-nights",
     date: "2026-03-15T20:00:00Z",
+    cost: 0,
+    currency: "USD",
+    hasAdditionalTiers: false,
   },
   {
     id: "evt-2",
@@ -35,6 +50,9 @@ export const MOCK_EVENTS: LexerEvent[] = [
     recurrent: false,
     inviteUrl: "https://example.com/synthwave-gallery",
     date: "2026-03-22T18:00:00Z",
+    cost: 15,
+    currency: "USD",
+    hasAdditionalTiers: true,
   },
   {
     id: "evt-3",
@@ -48,6 +66,9 @@ export const MOCK_EVENTS: LexerEvent[] = [
     recurrent: true,
     inviteUrl: "https://example.com/london-hackers",
     date: "2026-03-10T19:00:00Z",
+    cost: 0,
+    currency: "GBP",
+    hasAdditionalTiers: false,
   },
   {
     id: "evt-4",
@@ -61,6 +82,9 @@ export const MOCK_EVENTS: LexerEvent[] = [
     recurrent: false,
     inviteUrl: "https://example.com/punk-rock",
     date: "2026-04-05T21:00:00Z",
+    cost: 20,
+    currency: "GBP",
+    hasAdditionalTiers: false,
   },
   {
     id: "evt-5",
@@ -74,6 +98,9 @@ export const MOCK_EVENTS: LexerEvent[] = [
     recurrent: true,
     inviteUrl: "https://example.com/nyc-coders",
     date: "2026-03-20T18:30:00Z",
+    cost: 10,
+    currency: "USD",
+    hasAdditionalTiers: true,
   },
   {
     id: "evt-6",
@@ -86,6 +113,9 @@ export const MOCK_EVENTS: LexerEvent[] = [
     recurrent: false,
     inviteUrl: "https://example.com/arcade-night",
     date: "2026-04-12T20:00:00Z",
+    cost: 5,
+    currency: "USD",
+    hasAdditionalTiers: false,
   },
   {
     id: "evt-7",
@@ -99,6 +129,9 @@ export const MOCK_EVENTS: LexerEvent[] = [
     recurrent: true,
     inviteUrl: "https://example.com/toronto-indie",
     date: "2026-03-18T19:00:00Z",
+    cost: 0,
+    currency: "CAD",
+    hasAdditionalTiers: true,
   },
   {
     id: "evt-8",
@@ -112,6 +145,9 @@ export const MOCK_EVENTS: LexerEvent[] = [
     recurrent: false,
     inviteUrl: "https://example.com/mtl-jam",
     date: "2026-04-01T10:00:00Z",
+    cost: 25,
+    currency: "CAD",
+    hasAdditionalTiers: true,
   },
   {
     id: "evt-9",
@@ -125,6 +161,9 @@ export const MOCK_EVENTS: LexerEvent[] = [
     recurrent: true,
     inviteUrl: "https://example.com/mtl-glitch",
     date: "2026-03-25T14:00:00Z",
+    cost: 0,
+    currency: "CAD",
+    hasAdditionalTiers: false,
   },
 ];
 

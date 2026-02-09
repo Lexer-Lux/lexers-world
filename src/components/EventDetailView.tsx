@@ -1,6 +1,7 @@
 "use client";
 
 import { LexerEvent } from "@/lib/types";
+import { formatCost } from "@/lib/data";
 import FlipDate from "./FlipDate";
 import RecurringBadge from "./RecurringBadge";
 
@@ -106,6 +107,13 @@ export default function EventDetailView({
             <div className="flex items-center gap-2 text-sm" style={{ fontFamily: "monospace" }}>
               <span style={{ color: "#b026ff" }}>&#9672;</span>
               <span style={{ color: "rgba(255, 255, 255, 0.7)" }}>{event.manualLocation}</span>
+            </div>
+
+            <div className="flex items-center gap-2 text-sm" style={{ fontFamily: "monospace" }}>
+              <span style={{ color: "#00f0ff" }}>&#9830;</span>
+              <span style={{ color: event.cost === 0 ? "#00f0ff" : "rgba(255, 255, 255, 0.7)" }}>
+                {formatCost(event.cost, event.currency, event.hasAdditionalTiers)}
+              </span>
             </div>
 
             <div className="flex items-center gap-2 text-sm" style={{ fontFamily: "monospace" }}>

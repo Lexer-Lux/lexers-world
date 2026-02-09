@@ -1,6 +1,7 @@
 "use client";
 
 import { LexerEvent } from "@/lib/types";
+import { formatCost } from "@/lib/data";
 import FlipDate from "./FlipDate";
 import RecurringBadge from "./RecurringBadge";
 
@@ -111,12 +112,15 @@ export default function EventListPanel({
                   >
                     {event.name}
                   </h3>
-                  <p
-                    className="text-xs mb-2"
+                  <div
+                    className="flex items-center gap-3 text-xs mb-2"
                     style={{ color: "rgba(255, 255, 255, 0.5)", fontFamily: "monospace" }}
                   >
                     <FlipDate iso={event.date} />
-                  </p>
+                    <span style={{ color: event.cost === 0 ? "#00f0ff" : "#ff2d75" }}>
+                      {formatCost(event.cost, event.currency, event.hasAdditionalTiers)}
+                    </span>
+                  </div>
                   <p
                     className="text-sm leading-relaxed"
                     style={{
