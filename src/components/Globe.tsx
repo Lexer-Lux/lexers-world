@@ -2,25 +2,18 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import ReactGlobe, { GlobeMethods } from "react-globe.gl";
-
-interface KeyLocation {
-  name: string;
-  lat: number;
-  lng: number;
-}
-
-const KEY_LOCATIONS: KeyLocation[] = [
-  { name: "Bay Area, CA", lat: 37.7749, lng: -122.4194 },
-  { name: "London, UK", lat: 51.5074, lng: -0.1278 },
-  { name: "New York, NY", lat: 40.7128, lng: -74.006 },
-  { name: "Toronto, ON", lat: 43.6532, lng: -79.3832 },
-  { name: "Montréal, QC", lat: 45.5017, lng: -73.5673 },
-];
+import { KEY_LOCATIONS, MOCK_EVENTS } from "@/lib/data";
+import { KeyLocation, LexerEvent } from "@/lib/types";
 
 // Zoom threshold: above this altitude = zoomed out (show stars)
 const ZOOM_THRESHOLD = 1.8;
 
-export default function Globe() {
+interface GlobeProps {
+  onLocationClick: (locationName: string) => void;
+  onEventClick: (event: LexerEvent) => void;
+}
+
+export default function Globe({ onLocationClick, onEventClick }: GlobeProps) {
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [altitude, setAltitude] = useState(2.5);
@@ -61,6 +54,10 @@ export default function Globe() {
     });
   }, []);
 
+  // Stable refs for callbacks so htmlElement doesn't recreate on every render
+  const onLocationClickRef = useRef(onLocationClick);
+  onLocationClickRef.current = onLocationClick;
+
   // Star SVG as HTML for markers
   const markerHtml = useCallback(
     (d: object) => {
@@ -96,18 +93,31 @@ export default function Globe() {
       backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
       atmosphereColor="#b026ff"
       atmosphereAltitude={0.2}
-      // Key location markers
+      // Key location markers (HTML layer)
       htmlElementsData={KEY_LOCATIONS}
       htmlLat={(d) => (d as KeyLocation).lat}
       htmlLng={(d) => (d as KeyLocation).lng}
       htmlElement={(d) => {
+        const loc = d as KeyLocation;
         const el = document.createElement("div");
         el.innerHTML = markerHtml(d);
         el.style.pointerEvents = "auto";
         el.style.cursor = "pointer";
+        el.onclick = (e) => {
+          e.stopPropagation();
+          onLocationClickRef.current(loc.name);
+        };
         return el;
       }}
       htmlAltitude={0.01}
+      // Event dots (points layer) — visible only when zoomed in
+      pointsData={isZoomedOut ? [] : MOCK_EVENTS}
+      pointLat={(d) => (d as LexerEvent).lat}
+      pointLng={(d) => (d as LexerEvent).lng}
+      pointColor={() => "#ff2d75"}
+      pointRadius={0.4}
+      pointAltitude={0.01}
+      onPointClick={(point) => onEventClick(point as unknown as LexerEvent)}
     />
   );
 }
