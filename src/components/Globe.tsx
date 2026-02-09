@@ -109,7 +109,8 @@ export default function Globe({ onLocationClick, onEventClick }: GlobeProps) {
         };
         return el;
       }}
-      htmlAltitude={0.01}
+      htmlAltitude={0}
+      htmlTransitionDuration={0}
       // Event dots (points layer) — visible only when zoomed in
       pointsData={isZoomedOut ? [] : MOCK_EVENTS}
       pointLat={(d) => (d as LexerEvent).lat}

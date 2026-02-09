@@ -1,23 +1,13 @@
 "use client";
 
 import { LexerEvent } from "@/lib/types";
+import FlipDate from "./FlipDate";
+import RecurringBadge from "./RecurringBadge";
 
 interface EventDetailViewProps {
   event: LexerEvent;
   onBack: () => void;
   onClose: () => void;
-}
-
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
 }
 
 export default function EventDetailView({
@@ -45,6 +35,13 @@ export default function EventDetailView({
             "0 0 40px rgba(176, 38, 255, 0.15), 0 0 80px rgba(255, 45, 117, 0.08)",
         }}
       >
+        {/* Recurring badge — top right of card */}
+        {event.recurrent && (
+          <div className="absolute top-3 right-3 z-10">
+            <RecurringBadge size={32} />
+          </div>
+        )}
+
         {/* Top bar */}
         <div
           className="flex items-center justify-between px-5 py-3"
@@ -87,7 +84,7 @@ export default function EventDetailView({
         <div className="px-6 py-5">
           {/* Event name */}
           <h1
-            className="text-2xl font-black tracking-wide uppercase mb-4"
+            className="text-2xl font-black tracking-wide uppercase mb-4 pr-12"
             style={{
               color: "#ff2d75",
               textShadow: "0 0 12px rgba(255, 45, 117, 0.6), 0 0 30px rgba(255, 45, 117, 0.3)",
@@ -101,24 +98,14 @@ export default function EventDetailView({
           <div className="flex flex-col gap-2 mb-5">
             <div className="flex items-center gap-2 text-sm" style={{ fontFamily: "monospace" }}>
               <span style={{ color: "#b026ff" }}>&#9737;</span>
-              <span style={{ color: "rgba(255, 255, 255, 0.7)" }}>{formatDate(event.date)}</span>
+              <span style={{ color: "rgba(255, 255, 255, 0.7)" }}>
+                <FlipDate iso={event.date} />
+              </span>
             </div>
 
             <div className="flex items-center gap-2 text-sm" style={{ fontFamily: "monospace" }}>
               <span style={{ color: "#b026ff" }}>&#9672;</span>
               <span style={{ color: "rgba(255, 255, 255, 0.7)" }}>{event.manualLocation}</span>
-              {event.recurrent && (
-                <span
-                  className="ml-2 px-2 py-0.5 rounded text-xs"
-                  style={{
-                    color: "#b026ff",
-                    border: "1px solid rgba(176, 38, 255, 0.4)",
-                    background: "rgba(176, 38, 255, 0.1)",
-                  }}
-                >
-                  &#x21BB; recurring
-                </span>
-              )}
             </div>
 
             <div className="flex items-center gap-2 text-sm" style={{ fontFamily: "monospace" }}>

@@ -1,23 +1,14 @@
 "use client";
 
 import { LexerEvent } from "@/lib/types";
+import FlipDate from "./FlipDate";
+import RecurringBadge from "./RecurringBadge";
 
 interface EventListPanelProps {
   locationName: string;
   events: LexerEvent[];
   onEventClick: (event: LexerEvent) => void;
   onClose: () => void;
-}
-
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
 }
 
 export default function EventListPanel({
@@ -92,7 +83,7 @@ export default function EventListPanel({
                 <button
                   key={event.id}
                   onClick={() => onEventClick(event)}
-                  className="text-left rounded-lg p-4 transition-all cursor-pointer
+                  className="relative text-left rounded-lg p-4 transition-all cursor-pointer
                     hover:scale-[1.02]"
                   style={{
                     background: "rgba(255, 45, 117, 0.06)",
@@ -109,8 +100,13 @@ export default function EventListPanel({
                     e.currentTarget.style.boxShadow = "0 0 0 rgba(255, 45, 117, 0)";
                   }}
                 >
+                  {event.recurrent && (
+                    <div className="absolute top-3 right-3">
+                      <RecurringBadge />
+                    </div>
+                  )}
                   <h3
-                    className="text-base font-bold mb-1"
+                    className="text-base font-bold mb-1 pr-10"
                     style={{ color: "#00f0ff", fontFamily: "monospace" }}
                   >
                     {event.name}
@@ -119,10 +115,7 @@ export default function EventListPanel({
                     className="text-xs mb-2"
                     style={{ color: "rgba(255, 255, 255, 0.5)", fontFamily: "monospace" }}
                   >
-                    {formatDate(event.date)}
-                    {event.recurrent && (
-                      <span style={{ color: "#b026ff", marginLeft: 8 }}>&#x21BB; recurring</span>
-                    )}
+                    <FlipDate iso={event.date} />
                   </p>
                   <p
                     className="text-sm leading-relaxed"
