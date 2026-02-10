@@ -2,14 +2,21 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 let client: SupabaseClient | null = null;
 
-export function getSupabaseBrowserClient(): SupabaseClient {
+export function isSupabaseBrowserConfigured(): boolean {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  return Boolean(url && anonKey);
+}
+
+export function getSupabaseBrowserClient(): SupabaseClient | null {
   if (client) return client;
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!url || !anonKey) {
-    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY");
+    return null;
   }
 
   client = createClient(url, anonKey);

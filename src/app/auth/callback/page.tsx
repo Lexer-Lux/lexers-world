@@ -40,6 +40,12 @@ export default function AuthCallbackPage() {
 
       try {
         const supabase = getSupabaseBrowserClient();
+        if (!supabase) {
+          setStatus("error");
+          setMessage("Sign in is unavailable on this deployment (missing Supabase public env vars).");
+          return;
+        }
+
         const { error } = await supabase.auth.exchangeCodeForSession(code);
 
         if (error) {

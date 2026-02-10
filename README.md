@@ -24,11 +24,13 @@ pnpm install
 cp .env.example .env.local
 ```
 
-Required env vars:
+Core env vars:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `FUZZ_SECRET`
+
+If Supabase public env vars are missing in a deployment, the site now stays up in outsider mode and disables sign-in instead of crashing.
 
 Optional auth/privacy env vars:
 

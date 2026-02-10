@@ -172,4 +172,4 @@ Interactive web app featuring a 3D globe showing events at key locations worldwi
 2. ~~How should events be managed?~~ — decided for Phase 2: direct DB edits
 3. ~~Globe library choice~~ — decided: react-globe.gl
 4. ~~Location privacy approach for recurrent events~~ — decided: HMAC seeded by precise coordinates
-5. Mobile-first or desktop-first?
+5. ~~Mobile-first or desktop-first?~~ — resolved: desktop-first implementation with mobile polish passes completed

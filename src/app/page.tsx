@@ -12,7 +12,7 @@ import { LEXER_TWITTER_URL } from "@/lib/app-config";
 import { DEFAULT_GLOBE_RUNTIME_SETTINGS } from "@/lib/globe-settings";
 import { OUTSIDER_PRIVACY_DISCLAIMER, REDACTED_ADDRESS_LABEL } from "@/lib/privacy-constants";
 import type { EventsApiResponse, LexerEvent, ViewerMode } from "@/lib/types";
-import { getSupabaseBrowserClient } from "@/lib/supabase";
+import { getSupabaseBrowserClient, isSupabaseBrowserConfigured } from "@/lib/supabase";
 import CurvedTitle from "@/components/CurvedTitle";
 import DevDrawer from "@/components/DevDrawer";
 import EventListPanel from "@/components/EventListPanel";
@@ -37,6 +37,8 @@ function hasAuthStatus(value: unknown): value is EventsApiResponse["authStatus"]
 }
 
 export default function Home() {
+  const authConfigured = isSupabaseBrowserConfigured();
+
   const [events, setEvents] = useState<LexerEvent[]>(MOCK_EVENTS);
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<LexerEvent | null>(null);
@@ -101,7 +103,11 @@ export default function Home() {
         setAuthState(payload.viewerMode === "insider" ? "insider" : "pending");
       }
 
-      if (typeof payload.approvalMessage === "string" && payload.approvalMessage.trim().length > 0) {
+      if (
+        authConfigured &&
+        typeof payload.approvalMessage === "string" &&
+        payload.approvalMessage.trim().length > 0
+      ) {
         setAuthMessage(payload.approvalMessage);
       }
     } catch {
@@ -115,18 +121,29 @@ export default function Home() {
       );
       setViewerMode("outsider");
       setPrivacyDisclaimer(OUTSIDER_PRIVACY_DISCLAIMER);
-      setAuthState(accessToken ? "pending" : "unauthenticated");
+      setAuthState(authConfigured ? (accessToken ? "pending" : "unauthenticated") : "unauthenticated");
       setAuthMessage(
-        accessToken
+        !authConfigured
+          ? "Sign in is unavailable on this deployment (missing Supabase public env vars)."
+          : accessToken
           ? "Signed in, but approval status could not be verified."
           : "Outsider access only. Sign in with X to request insider approval."
       );
     }
-  }, []);
+  }, [authConfigured]);
 
   // Initialize auth listener
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
+
+    if (!supabase) {
+      setSession(null);
+      setAuthState("unauthenticated");
+      setApprovedUsername(undefined);
+      setAuthMessage("Sign in is unavailable on this deployment (missing Supabase public env vars).");
+      fetchEvents();
+      return;
+    }
 
     // Get initial session
     supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
@@ -154,6 +171,12 @@ export default function Home() {
 
   const handleSignIn = async () => {
     const supabase = getSupabaseBrowserClient();
+    if (!supabase) {
+      setAuthState("unauthenticated");
+      setAuthMessage("Sign in is unavailable on this deployment (missing Supabase public env vars).");
+      return;
+    }
+
     await supabase.auth.signInWithOAuth({
       provider: "twitter",
       options: {
@@ -164,6 +187,15 @@ export default function Home() {
 
   const handleSignOut = async () => {
     const supabase = getSupabaseBrowserClient();
+    if (!supabase) {
+      setSession(null);
+      setAuthState("unauthenticated");
+      setApprovedUsername(undefined);
+      setAuthMessage("Sign in is unavailable on this deployment (missing Supabase public env vars).");
+      fetchEvents();
+      return;
+    }
+
     await supabase.auth.signOut();
     setSession(null);
     setAuthState("unauthenticated");
