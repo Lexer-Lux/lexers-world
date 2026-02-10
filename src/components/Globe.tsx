@@ -12,6 +12,8 @@ import type { KeyLocation, LexerEvent } from "@/lib/types";
 
 const SUN_DIRECTION = new Vector3(0.84, 0.28, 0.46).normalize();
 const EARTH_TEXTURE_URL = "https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg";
+const COUNTRIES_GEOJSON_URL =
+  "https://unpkg.com/three-globe/example/datasets/ne_110m_admin_0_countries.geojson";
 
 type BoundaryTier = "country" | "admin1" | "admin2";
 
@@ -21,6 +23,13 @@ interface BoundaryArc {
   endLat: number;
   endLng: number;
   tier: BoundaryTier;
+}
+
+interface GeoFeature {
+  geometry?: {
+    type?: string;
+    coordinates?: unknown;
+  };
 }
 
 interface GlobeShaderUniforms {
@@ -283,7 +292,9 @@ vec3 nightColor = vec3(0.015, 0.028, 0.08);
 
 vec3 ink = mix(nightColor, dayColor, dayMix);
 ink = mix(ink, twilightColor, smoothstep(-0.08, 0.08, sunDot) * 0.44);
-diffuseColor.rgb = mix(diffuseColor.rgb, ink, 0.72);
+vec3 lightingTint = mix(vec3(0.42, 0.5, 0.66), vec3(1.06, 1.03, 0.96), dayMix);
+diffuseColor.rgb *= lightingTint;
+diffuseColor.rgb = mix(diffuseColor.rgb, ink, 0.34);
 
 float terminatorNoise = sin(vWorldPosition.x * 0.07 + vWorldPosition.y * 0.11 + vWorldPosition.z * 0.09) * 0.5 + 0.5;
 float terminatorBand = (1.0 - smoothstep(0.0, 0.06, abs(sunDot))) * mix(0.78, 1.22, terminatorNoise);
@@ -336,7 +347,7 @@ float wireMask = clamp(max(majorLon, majorLat) * (0.4 + uWireStrength * 0.95) + 
 float dayMix = smoothstep(-0.14, 0.55, sunDot);
 float nightMix = 1.0 - dayMix;
 
-vec3 baseColor = vec3(0.01, 0.04, 0.03);
+vec3 baseColor = mix(vec3(0.004, 0.02, 0.017), vec3(0.025, 0.07, 0.056), dayMix);
 vec3 lineColor = vec3(0.24, 1.0, 0.69);
 vec3 glowColor = vec3(0.53, 1.0, 0.8);
 
@@ -354,6 +365,7 @@ diffuseColor.rgb += lineColor * sweep * 0.24;
 diffuseColor.rgb += glowColor * horizonBand * (0.22 + ${glowStrength} * 0.35);
 diffuseColor.rgb += lineColor * nightMix * 0.08 * ${glowStrength};
 diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.56, hatchDim);
+diffuseColor.rgb += vec3(0.03, 0.14, 0.09) * dayMix * 0.3;
 
 float starNoise = fract(sin(dot(vWorldPosition.xy + vec2(vWorldPosition.z), vec2(12.9898, 78.233))) * 43758.5453);
 diffuseColor.rgb += step(0.997, starNoise) * glowColor * 0.35 * ${glowStrength};
@@ -466,6 +478,7 @@ export default function Globe({
   const onAltitudeChangeRef = useRef(onAltitudeChange);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [altitude, setAltitude] = useState(2.5);
+  const [countryPolygons, setCountryPolygons] = useState<GeoFeature[]>([]);
   const performanceProfile = useMemo(() => getPerformanceProfile(), []);
 
   useEffect(() => {
@@ -615,6 +628,36 @@ uniform float uWireStrength;`
   );
 
   useEffect(() => {
+    let cancelled = false;
+
+    const loadCountryPolygons = async () => {
+      try {
+        const response = await fetch(COUNTRIES_GEOJSON_URL, { cache: "force-cache" });
+        if (!response.ok) {
+          return;
+        }
+
+        const data = (await response.json()) as { features?: GeoFeature[] };
+        if (cancelled) {
+          return;
+        }
+
+        if (Array.isArray(data.features)) {
+          setCountryPolygons(data.features);
+        }
+      } catch {
+        // keep graceful fallback when country data is unavailable
+      }
+    };
+
+    loadCountryPolygons();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     const updateDimensions = () => {
       setDimensions({ width: window.innerWidth, height: window.innerHeight });
     };
@@ -734,6 +777,17 @@ uniform float uWireStrength;`
       atmosphereColor={atmosphereColor}
       atmosphereAltitude={atmosphereAltitude}
       globeCurvatureResolution={performanceProfile.globeCurvatureResolution}
+      polygonsData={countryPolygons}
+      polygonCapColor={() => "rgba(0, 0, 0, 0)"}
+      polygonSideColor={() => "rgba(0, 0, 0, 0)"}
+      polygonStrokeColor={() =>
+        warEnabled
+          ? "rgba(122, 244, 187, 0.62)"
+          : paperEnabled
+            ? "rgba(140, 109, 76, 0.58)"
+            : "rgba(210, 233, 255, 0.6)"
+      }
+      polygonAltitude={0.003}
       arcsData={boundaryArcs}
       arcStartLat={(data) => (data as BoundaryArc).startLat}
       arcStartLng={(data) => (data as BoundaryArc).startLng}

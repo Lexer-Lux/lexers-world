@@ -47,11 +47,11 @@ function NumberControl({
   const precision = decimalPlaces(step);
 
   return (
-    <label htmlFor={id} className="grid gap-1">
-      <span className="font-mono text-[10px] uppercase tracking-[0.2em]" style={{ color: "var(--copy-secondary)" }}>
+    <label htmlFor={id} className="grid gap-0.5">
+      <span className="font-mono text-[9px] uppercase tracking-[0.16em]" style={{ color: "var(--copy-secondary)" }}>
         {label}
       </span>
-      <div className="grid grid-cols-[1fr_auto] items-center gap-2">
+      <div className="grid grid-cols-[1fr_auto] items-center gap-1.5">
         <input
           id={id}
           type="range"
@@ -76,7 +76,7 @@ function NumberControl({
 
             onChange(Math.min(max, Math.max(min, nextValue)));
           }}
-          className="w-[68px] rounded border bg-black/30 px-1.5 py-1 text-right font-mono text-[10px]"
+          className="w-[64px] rounded border bg-black/30 px-1 py-0.5 text-right font-mono text-[9px]"
           style={{
             color: "var(--copy-primary)",
             borderColor: "rgba(130, 166, 255, 0.38)",
@@ -99,24 +99,24 @@ function ColorControl({
   onChange: (value: string) => void;
 }) {
   return (
-    <label htmlFor={id} className="grid gap-1">
-      <span className="font-mono text-[10px] uppercase tracking-[0.2em]" style={{ color: "var(--copy-secondary)" }}>
+    <label htmlFor={id} className="grid gap-0.5">
+      <span className="font-mono text-[9px] uppercase tracking-[0.16em]" style={{ color: "var(--copy-secondary)" }}>
         {label}
       </span>
-      <div className="grid grid-cols-[auto_1fr] items-center gap-2">
+      <div className="grid grid-cols-[auto_1fr] items-center gap-1.5">
         <input
           id={id}
           type="color"
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className="h-7 w-10 cursor-pointer rounded border bg-transparent p-0"
+          className="h-6 w-9 cursor-pointer rounded border bg-transparent p-0"
           style={{ borderColor: "rgba(130, 166, 255, 0.38)" }}
         />
         <input
           type="text"
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className="rounded border bg-black/30 px-1.5 py-1 font-mono text-[10px] uppercase"
+          className="rounded border bg-black/30 px-1 py-0.5 font-mono text-[9px] uppercase"
           style={{
             color: "var(--copy-primary)",
             borderColor: "rgba(130, 166, 255, 0.38)",
@@ -139,8 +139,8 @@ function ToggleControl({
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label htmlFor={id} className="flex items-center justify-between gap-3">
-      <span className="font-mono text-[10px] uppercase tracking-[0.2em]" style={{ color: "var(--copy-secondary)" }}>
+    <label htmlFor={id} className="flex items-center justify-between gap-2">
+      <span className="font-mono text-[9px] uppercase tracking-[0.16em]" style={{ color: "var(--copy-secondary)" }}>
         {label}
       </span>
       <input
@@ -148,7 +148,7 @@ function ToggleControl({
         type="checkbox"
         checked={checked}
         onChange={(event) => onChange(event.target.checked)}
-        className="h-4 w-4 cursor-pointer accent-cyan-300"
+        className="h-3.5 w-3.5 cursor-pointer accent-cyan-300"
       />
     </label>
   );
@@ -165,13 +165,13 @@ function SectionCard({
 }) {
   return (
     <section
-      className="grid gap-1 rounded-md border px-2 py-1.5"
+      className="grid gap-0.5 rounded-md border px-1.5 py-1"
       style={{
         borderColor: active ? "rgba(0, 240, 255, 0.35)" : "rgba(142, 154, 205, 0.2)",
         background: active ? "rgba(0, 240, 255, 0.05)" : "rgba(10, 15, 31, 0.28)",
       }}
     >
-      <h3 className="font-mono text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: active ? "var(--neon-cyan)" : "var(--copy-secondary)" }}>
+      <h3 className="font-mono text-[11px] font-extrabold uppercase tracking-[0.18em]" style={{ color: active ? "var(--neon-cyan)" : "var(--copy-secondary)" }}>
         {title}
       </h3>
       {children}
@@ -189,7 +189,7 @@ function ResetButton({
   return (
     <button
       type="button"
-      className="cursor-pointer rounded border px-2 py-1 font-mono text-[10px] uppercase tracking-[0.2em]"
+      className="cursor-pointer rounded border px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.16em]"
       style={{
         color: "var(--neon-pink)",
         borderColor: "var(--border-pink)",
@@ -309,7 +309,7 @@ export default function DevDrawer({
   const wrapperClassName = useMemo(
     () => {
       if (isMobile) {
-        return `fixed inset-x-0 bottom-0 z-50 h-[50vh] transition-transform duration-300 ${open ? "translate-y-0" : "translate-y-full"}`;
+      return `fixed inset-x-0 bottom-0 z-50 h-[50vh] transition-transform duration-300 ${open ? "translate-y-0" : "translate-y-full"}`;
       }
 
       return `fixed left-0 top-0 z-50 h-screen w-[min(92vw,420px)] transition-transform duration-300 ${open ? "translate-x-0" : "-translate-x-full"}`;
@@ -379,7 +379,7 @@ export default function DevDrawer({
             <span className="font-mono text-[10px] uppercase tracking-[0.14em]">Close</span>
           </button>
 
-          <div className="border-b px-3 py-2" style={{ borderColor: "rgba(0, 240, 255, 0.18)" }}>
+          <div className="border-b px-2 py-1.5" style={{ borderColor: "rgba(0, 240, 255, 0.18)" }}>
             <div className="flex items-center justify-between gap-3">
               <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-neon-cyan">Dev Drawer</span>
               <span className="font-mono text-[10px]" style={{ color: "var(--copy-muted)" }}>
@@ -388,7 +388,7 @@ export default function DevDrawer({
             </div>
           </div>
 
-          <div className="grid h-[calc(100%-42px)] gap-2 overflow-y-auto px-2 py-2">
+          <div className="grid h-[calc(100%-38px)] gap-1 overflow-y-auto px-1.5 py-1.5">
             <SectionCard title="Globe Core" active>
             <ToggleControl
               id="dev-auto-rotate"
