@@ -218,8 +218,8 @@ export default function Home() {
     return getEventsForLocation(selectedLocation, events);
   }, [events, selectedLocation]);
 
-  const isWarGamesMode = runtimeSettings.globeExperimentMode === "wargames";
-  const isPaperMode = runtimeSettings.globeExperimentMode === "paper";
+  const isWarGamesMode = runtimeSettings.enableWarGamesEffect;
+  const isPaperMode = runtimeSettings.enablePaperEffect;
 
   const lockDetailMessage =
     authState === "insider"

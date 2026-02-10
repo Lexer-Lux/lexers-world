@@ -6,13 +6,12 @@ import { Color, MeshPhongMaterial, Vector3 } from "three";
 import { KEY_LOCATIONS } from "@/lib/data";
 import {
   DEFAULT_GLOBE_RUNTIME_SETTINGS,
-  GlobeExperimentMode,
   GlobeRuntimeSettings,
 } from "@/lib/globe-settings";
 import type { KeyLocation, LexerEvent } from "@/lib/types";
 
 const SUN_DIRECTION = new Vector3(0.84, 0.28, 0.46).normalize();
-const EARTH_TEXTURE_URL = "https://unpkg.com/three-globe/example/img/earth-night.jpg";
+const EARTH_TEXTURE_URL = "https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg";
 
 type BoundaryTier = "country" | "admin1" | "admin2";
 
@@ -122,14 +121,20 @@ const COUNTRY_BOUNDARY_ARCS = createBoundaryTier(45, 18, "country");
 const ADMIN1_BOUNDARY_ARCS = createBoundaryTier(22.5, 12, "admin1");
 const ADMIN2_BOUNDARY_ARCS = createBoundaryTier(11.25, 8, "admin2");
 
-function getBoundaryColor(mode: GlobeExperimentMode, tier: BoundaryTier): string {
-  if (mode === "wargames") {
+function getBoundaryColor(warEnabled: boolean, paperEnabled: boolean, tier: BoundaryTier): string {
+  if (warEnabled && paperEnabled) {
+    if (tier === "country") return "rgba(166, 232, 208, 0.9)";
+    if (tier === "admin1") return "rgba(130, 213, 190, 0.75)";
+    return "rgba(103, 193, 169, 0.6)";
+  }
+
+  if (warEnabled) {
     if (tier === "country") return "rgba(144, 255, 211, 0.9)";
     if (tier === "admin1") return "rgba(109, 245, 188, 0.75)";
     return "rgba(86, 226, 168, 0.6)";
   }
 
-  if (mode === "paper") {
+  if (paperEnabled) {
     if (tier === "country") return "rgba(105, 76, 47, 0.86)";
     if (tier === "admin1") return "rgba(121, 89, 58, 0.68)";
     return "rgba(142, 107, 73, 0.52)";
@@ -155,62 +160,80 @@ function scaleRgbaAlpha(color: string, alphaScale: number): string {
   return `rgba(${red}, ${green}, ${blue}, ${scaledAlpha.toFixed(3)})`;
 }
 
-function getMarkerPalette(mode: GlobeExperimentMode): { fill: string; stroke: string } {
-  if (mode === "wargames") {
+function getMarkerPalette(warEnabled: boolean, paperEnabled: boolean): { fill: string; stroke: string } {
+  if (warEnabled || paperEnabled) {
     return { fill: "#ff2d75", stroke: "#ff95b7" };
-  }
-
-  if (mode === "paper") {
-    return { fill: "#ff2d75", stroke: "#ffd0e0" };
   }
 
   return { fill: "#ff1744", stroke: "#ff8aa5" };
 }
 
-function getPointColor(mode: GlobeExperimentMode): string {
-  if (mode === "wargames") {
+function getPointColor(warEnabled: boolean, paperEnabled: boolean): string {
+  if (warEnabled && paperEnabled) {
+    return "#9fffd7";
+  }
+
+  if (warEnabled) {
     return "#74ffc3";
   }
 
-  if (mode === "paper") {
+  if (paperEnabled) {
     return "#8a402b";
   }
 
   return "#ff2d75";
 }
 
-function getAtmosphereColor(mode: GlobeExperimentMode): string {
-  if (mode === "wargames") {
+function getAtmosphereColor(warEnabled: boolean, paperEnabled: boolean): string {
+  if (warEnabled && paperEnabled) {
+    return "#79d6b2";
+  }
+
+  if (warEnabled) {
     return "#2ad790";
   }
 
-  if (mode === "paper") {
+  if (paperEnabled) {
     return "#b99c77";
   }
 
   return "#4f72ff";
 }
 
-function getAtmosphereAltitude(mode: GlobeExperimentMode, lowPower: boolean): number {
-  if (mode === "wargames") {
+function getAtmosphereAltitude(warEnabled: boolean, paperEnabled: boolean, lowPower: boolean): number {
+  if (warEnabled && paperEnabled) {
+    return lowPower ? 0.08 : 0.105;
+  }
+
+  if (warEnabled) {
     return lowPower ? 0.06 : 0.085;
   }
 
-  if (mode === "paper") {
+  if (paperEnabled) {
     return lowPower ? 0.08 : 0.1;
   }
 
   return lowPower ? 0.1 : 0.13;
 }
 
-function getMaterialPalette(mode: GlobeExperimentMode): {
+function getMaterialPalette(warEnabled: boolean, paperEnabled: boolean): {
   color: string;
   emissive: string;
   emissiveIntensity: number;
   specular: string;
   shininess: number;
 } {
-  if (mode === "wargames") {
+  if (warEnabled && paperEnabled) {
+    return {
+      color: "#154037",
+      emissive: "#101713",
+      emissiveIntensity: 0.52,
+      specular: "#d2eec6",
+      shininess: 12,
+    };
+  }
+
+  if (warEnabled) {
     return {
       color: "#0a1912",
       emissive: "#04150d",
@@ -220,7 +243,7 @@ function getMaterialPalette(mode: GlobeExperimentMode): {
     };
   }
 
-  if (mode === "paper") {
+  if (paperEnabled) {
     return {
       color: "#d6c7ab",
       emissive: "#21180f",
@@ -393,11 +416,35 @@ diffuseColor.rgb = clamp(diffuseColor.rgb, 0.0, 1.0);
 }
 
 function buildFragmentBody(settings: GlobeRuntimeSettings, lowPower: boolean): string {
-  if (settings.globeExperimentMode === "wargames") {
+  if (settings.enableWarGamesEffect && settings.enablePaperEffect) {
+    const base = buildDefaultFragmentBody(settings, lowPower);
+    const lineDensity = shaderFloat(clamp(settings.warGamesLineDensity, 6, 24));
+    const glowStrength = shaderFloat(clamp(settings.warGamesGlowStrength, 0, 2));
+    const paperGrain = shaderFloat(clamp(settings.paperGrainStrength, 0, 1.6));
+    const paperInk = shaderFloat(clamp(settings.paperInkStrength, 0, 1.6));
+
+    return base.replace(
+      "#include <dithering_fragment>",
+      `float hybridLon = 1.0 - smoothstep(0.92, 0.995, abs(sin(atan(worldNormal.z, worldNormal.x) * ${lineDensity})));
+float hybridLat = 1.0 - smoothstep(0.92, 0.995, abs(sin(asin(clamp(worldNormal.y, -1.0, 1.0)) * (${lineDensity} * 0.92))));
+float hybridWire = clamp(max(hybridLon, hybridLat) * uWireStrength, 0.0, 1.0);
+vec3 hybridLineColor = vec3(0.58, 1.0, 0.79);
+diffuseColor.rgb = mix(diffuseColor.rgb, hybridLineColor, hybridWire * (0.28 + ${glowStrength} * 0.2));
+
+float hybridGrain = fract(sin(dot(vWorldPosition.xy + vec2(vWorldPosition.z), vec2(127.1, 311.7))) * 43758.5453);
+diffuseColor.rgb += vec3((hybridGrain - 0.5) * ${paperGrain} * 0.12);
+diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.84, (1.0 - smoothstep(0.0, 0.35, sunDot)) * ${paperInk} * 0.22);
+diffuseColor.rgb = clamp(diffuseColor.rgb, 0.0, 1.0);
+
+#include <dithering_fragment>`
+    );
+  }
+
+  if (settings.enableWarGamesEffect) {
     return buildWarGamesFragmentBody(settings, lowPower);
   }
 
-  if (settings.globeExperimentMode === "paper") {
+  if (settings.enablePaperEffect) {
     return buildPaperFragmentBody(settings, lowPower);
   }
 
@@ -412,7 +459,8 @@ export default function Globe({
   onAltitudeChange,
 }: GlobeProps) {
   const settings = runtimeSettings ?? DEFAULT_GLOBE_RUNTIME_SETTINGS;
-  const mode = settings.globeExperimentMode;
+  const warEnabled = settings.enableWarGamesEffect;
+  const paperEnabled = settings.enablePaperEffect;
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
   const onLocationClickRef = useRef(onLocationClick);
   const onAltitudeChangeRef = useRef(onAltitudeChange);
@@ -432,7 +480,7 @@ export default function Globe({
     const detailStrength = getDetailStrength(performanceProfile.lowPower);
     const wireStrength = clamp(settings.wireStrength, 0, 1.6);
     const hatchStrength = clamp(settings.hatchStrength, 0, 1.6);
-    const palette = getMaterialPalette(mode);
+    const palette = getMaterialPalette(warEnabled, paperEnabled);
 
     const material = new MeshPhongMaterial({
       color: new Color(palette.color),
@@ -493,7 +541,8 @@ uniform float uWireStrength;`
       [
         "stylized-globe",
         performanceProfile.lowPower ? "low" : "full",
-        settings.globeExperimentMode,
+        settings.enableWarGamesEffect ? "war-on" : "war-off",
+        settings.enablePaperEffect ? "paper-on" : "paper-off",
         settings.wireStrength,
         settings.hatchStrength,
         settings.crosshatchDensity,
@@ -508,7 +557,8 @@ uniform float uWireStrength;`
 
     return material;
   }, [
-    mode,
+    warEnabled,
+    paperEnabled,
     performanceProfile.lowPower,
     settings,
   ]);
@@ -542,19 +592,19 @@ uniform float uWireStrength;`
   }, [altitude, performanceProfile.lowPower, settings.showBoundaryTiers, settings.zoomThreshold]);
 
   const atmosphereColor = useMemo(() => {
-    const fallback = getAtmosphereColor(mode);
+    const fallback = getAtmosphereColor(warEnabled, paperEnabled);
     const configured = settings.atmosphereColor?.trim();
     if (!configured) {
       return fallback;
     }
 
     return /^#(?:[0-9a-fA-F]{3}){1,2}$/.test(configured) ? configured : fallback;
-  }, [mode, settings.atmosphereColor]);
+  }, [paperEnabled, settings.atmosphereColor, warEnabled]);
 
   const atmosphereAltitude = useMemo(() => {
-    const fallback = getAtmosphereAltitude(mode, performanceProfile.lowPower);
+    const fallback = getAtmosphereAltitude(warEnabled, paperEnabled, performanceProfile.lowPower);
     return clamp(settings.atmosphereAltitude || fallback, 0.03, 0.28);
-  }, [mode, performanceProfile.lowPower, settings.atmosphereAltitude]);
+  }, [paperEnabled, performanceProfile.lowPower, settings.atmosphereAltitude, warEnabled]);
 
   const pointRadius = useMemo(() => clamp(settings.pointRadius, 0.12, 1.2), [settings.pointRadius]);
   const pointAltitude = useMemo(() => clamp(settings.pointAltitude, 0, 0.05), [settings.pointAltitude]);
@@ -637,7 +687,7 @@ uniform float uWireStrength;`
         return "";
       }
 
-      const palette = getMarkerPalette(mode);
+      const palette = getMarkerPalette(warEnabled, paperEnabled);
       const markerSize = Math.max(14, Math.round(24 * markerScale));
       const labelFontSize = Math.max(9, Math.round(11 * markerScale));
       const labelMarginTop = Math.max(2, Math.round(2 * markerScale));
@@ -667,7 +717,7 @@ uniform float uWireStrength;`
         </div>
       `;
     },
-    [isZoomedOut, markerScale, mode]
+    [isZoomedOut, markerScale, paperEnabled, warEnabled]
   );
 
   return (
@@ -679,7 +729,7 @@ uniform float uWireStrength;`
       backgroundImageUrl={null}
       globeImageUrl={EARTH_TEXTURE_URL}
       globeMaterial={globeMaterial}
-      showGraticules={mode === "default"}
+      showGraticules={!warEnabled && !paperEnabled}
       showAtmosphere={settings.showAtmosphere}
       atmosphereColor={atmosphereColor}
       atmosphereAltitude={atmosphereAltitude}
@@ -690,7 +740,7 @@ uniform float uWireStrength;`
       arcEndLat={(data) => (data as BoundaryArc).endLat}
       arcEndLng={(data) => (data as BoundaryArc).endLng}
       arcColor={(data: object) =>
-        scaleRgbaAlpha(getBoundaryColor(mode, (data as BoundaryArc).tier), boundaryOpacity)
+        scaleRgbaAlpha(getBoundaryColor(warEnabled, paperEnabled, (data as BoundaryArc).tier), boundaryOpacity)
       }
       arcAltitude={(data: object) => {
         const tier = (data as BoundaryArc).tier;
@@ -739,7 +789,7 @@ uniform float uWireStrength;`
       pointsData={isZoomedOut ? [] : events}
       pointLat={(data) => (data as LexerEvent).lat}
       pointLng={(data) => (data as LexerEvent).lng}
-      pointColor={() => getPointColor(mode)}
+      pointColor={() => getPointColor(warEnabled, paperEnabled)}
       pointRadius={pointRadius}
       pointAltitude={pointAltitude}
       pointResolution={performanceProfile.pointResolution}

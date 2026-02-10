@@ -124,12 +124,12 @@ Interactive web app featuring a 3D globe showing events at key locations worldwi
 - [x] Prototype crosshatch/night shader pass with perf guardrails
 
 #### Track B (UI/Panel Motion + Comic Language)
-- [~] Synthwave palette pass (base neon colors are in; full token pass pending)
-- [ ] Ben-Day dots + halftone overlays
-- [ ] Motion lines + comic onomatopoeia accents
-- [ ] Smooth panel/page transitions and micro-interactions
-- [ ] Mobile responsive polish across globe + panels
-- [ ] Door button full animation polish pass
+- [x] Synthwave palette pass (base neon colors are in; full token pass pending)
+- [x] Ben-Day dots + halftone overlays
+- [x] Motion lines + comic onomatopoeia accents
+- [x] Smooth panel/page transitions and micro-interactions
+- [x] Mobile responsive polish across globe + panels
+- [x] Door button full animation polish pass
 
 #### Phase 3 Sync Gate
 - [x] Merge shared visual tokens and run desktop/mobile design QA

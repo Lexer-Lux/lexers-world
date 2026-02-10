@@ -8,7 +8,6 @@ import {
 } from "@/lib/aesthetic-settings";
 import {
   DEFAULT_GLOBE_RUNTIME_SETTINGS,
-  GlobeExperimentMode,
   GlobeRuntimeSettings,
 } from "@/lib/globe-settings";
 
@@ -155,44 +154,6 @@ function ToggleControl({
   );
 }
 
-function ModeControl({
-  value,
-  onChange,
-}: {
-  value: GlobeExperimentMode;
-  onChange: (mode: GlobeExperimentMode) => void;
-}) {
-  const modes: Array<{ id: GlobeExperimentMode; label: string }> = [
-    { id: "default", label: "Default" },
-    { id: "wargames", label: "WarGames" },
-    { id: "paper", label: "Paper" },
-  ];
-
-  return (
-    <div className="grid grid-cols-3 gap-1">
-      {modes.map((mode) => {
-        const active = value === mode.id;
-
-        return (
-          <button
-            key={mode.id}
-            type="button"
-            onClick={() => onChange(mode.id)}
-            className="cursor-pointer rounded border px-1.5 py-1 font-mono text-[10px] uppercase tracking-[0.14em]"
-            style={{
-              color: active ? "var(--neon-cyan)" : "var(--copy-secondary)",
-              borderColor: active ? "var(--border-cyan)" : "rgba(133, 144, 191, 0.28)",
-              background: active ? "rgba(0, 240, 255, 0.1)" : "rgba(10, 14, 31, 0.35)",
-            }}
-          >
-            {mode.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
 function SectionCard({
   title,
   active,
@@ -204,13 +165,13 @@ function SectionCard({
 }) {
   return (
     <section
-      className="grid gap-2 rounded-md border px-2 py-2"
+      className="grid gap-1 rounded-md border px-2 py-1.5"
       style={{
         borderColor: active ? "rgba(0, 240, 255, 0.35)" : "rgba(142, 154, 205, 0.2)",
         background: active ? "rgba(0, 240, 255, 0.05)" : "rgba(10, 15, 31, 0.28)",
       }}
     >
-      <h3 className="font-mono text-[10px] uppercase tracking-[0.2em]" style={{ color: active ? "var(--neon-cyan)" : "var(--copy-secondary)" }}>
+      <h3 className="font-mono text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: active ? "var(--neon-cyan)" : "var(--copy-secondary)" }}>
         {title}
       </h3>
       {children}
@@ -248,6 +209,29 @@ export default function DevDrawer({
   onAestheticChange,
 }: DevDrawerProps) {
   const [open, setOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [showTabHint, setShowTabHint] = useState(true);
+
+  useEffect(() => {
+    const mobileMedia = window.matchMedia("(max-width: 767px)");
+    const pointerFineMedia = window.matchMedia("(pointer:fine)");
+
+    const updateDeviceHints = () => {
+      setIsMobile(mobileMedia.matches);
+      const touchOnly = (navigator.maxTouchPoints ?? 0) > 0 && !pointerFineMedia.matches;
+      setShowTabHint(!touchOnly);
+    };
+
+    updateDeviceHints();
+
+    mobileMedia.addEventListener("change", updateDeviceHints);
+    pointerFineMedia.addEventListener("change", updateDeviceHints);
+
+    return () => {
+      mobileMedia.removeEventListener("change", updateDeviceHints);
+      pointerFineMedia.removeEventListener("change", updateDeviceHints);
+    };
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -276,6 +260,10 @@ export default function DevDrawer({
   }, []);
 
   useEffect(() => {
+    if (open) {
+      return;
+    }
+
     let startX = 0;
     let startY = 0;
 
@@ -307,10 +295,6 @@ export default function DevDrawer({
       if (!open && nearLeftEdge && deltaX > 56) {
         setOpen(true);
       }
-
-      if (open && deltaX < -56) {
-        setOpen(false);
-      }
     };
 
     window.addEventListener("touchstart", handleTouchStart, { passive: true });
@@ -323,37 +307,89 @@ export default function DevDrawer({
   }, [open]);
 
   const wrapperClassName = useMemo(
-    () =>
-      `fixed bottom-4 left-4 z-50 w-[min(92vw,420px)] transition-transform duration-300 ${open ? "translate-x-0" : "-translate-x-[calc(100%+18px)]"}`,
-    [open]
+    () => {
+      if (isMobile) {
+        return `fixed inset-x-0 bottom-0 z-50 h-[50vh] transition-transform duration-300 ${open ? "translate-y-0" : "translate-y-full"}`;
+      }
+
+      return `fixed left-0 top-0 z-50 h-screen w-[min(92vw,420px)] transition-transform duration-300 ${open ? "translate-x-0" : "-translate-x-full"}`;
+    },
+    [isMobile, open]
   );
 
+  const openerButtonClassName = isMobile
+    ? "fixed bottom-4 left-3 z-[52] rounded-md border px-2 py-1"
+    : "fixed left-0 top-1/2 z-[52] -translate-y-1/2 rounded-r-md border px-2 py-1";
+
   return (
-    <aside className={wrapperClassName}>
-      <div className="panel-shell benday-overlay relative overflow-hidden rounded-xl border" style={{ borderColor: "var(--border-cyan)" }}>
+    <>
+      {!open && (
         <button
           type="button"
-          className="w-full cursor-pointer border-b px-3 py-2 text-left"
-          style={{ borderColor: "rgba(0, 240, 255, 0.18)" }}
-          onClick={() => setOpen((prev) => !prev)}
+          className={`${openerButtonClassName} cursor-pointer`}
+          style={{
+            color: "var(--neon-cyan)",
+            borderColor: "var(--border-cyan)",
+            background: "rgba(8, 14, 30, 0.72)",
+            boxShadow: "0 0 10px rgba(0, 240, 255, 0.24)",
+          }}
+          onClick={() => setOpen(true)}
+          aria-label="Open dev drawer"
         >
-          <div className="flex items-center justify-between gap-3">
-            <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-neon-cyan">Dev Drawer</span>
-            <span className="font-mono text-[10px]" style={{ color: "var(--copy-muted)" }}>
-              TAB
-            </span>
-          </div>
+          <span className="font-mono text-[10px] uppercase tracking-[0.18em]">DEV</span>
         </button>
+      )}
 
-        <div className="grid max-h-[74vh] gap-3 overflow-y-auto px-3 py-3">
-          <SectionCard title="Experiment Mode" active>
-            <ModeControl
-              value={globeSettings.globeExperimentMode}
-              onChange={(mode) => onGlobeChange({ ...globeSettings, globeExperimentMode: mode })}
-            />
-          </SectionCard>
+      <aside className={wrapperClassName}>
+        <div
+          className="panel-shell benday-overlay relative h-full overflow-hidden border"
+          style={{
+            borderColor: "var(--border-cyan)",
+            borderRadius: isMobile ? "16px 16px 0 0" : "0 12px 12px 0",
+            background: "rgba(8, 11, 24, 0.72)",
+            backdropFilter: "blur(10px)",
+          }}
+        >
+          <button
+            type="button"
+            className="absolute right-[-30px] top-1/2 z-[51] hidden h-14 w-8 -translate-y-1/2 rounded-r-md border md:block"
+            style={{
+              color: "var(--neon-cyan)",
+              borderColor: "var(--border-cyan)",
+              background: "rgba(8, 14, 30, 0.74)",
+              boxShadow: "0 0 10px rgba(0, 240, 255, 0.2)",
+            }}
+            onClick={() => setOpen(false)}
+            aria-label="Close dev drawer"
+          >
+            <span className="font-mono text-xs">›</span>
+          </button>
 
-          <SectionCard title="Globe Core" active={globeSettings.globeExperimentMode === "default"}>
+          <button
+            type="button"
+            className="absolute right-3 top-2 z-[51] rounded border px-2 py-1 md:hidden"
+            style={{
+              color: "var(--neon-cyan)",
+              borderColor: "var(--border-cyan)",
+              background: "rgba(8, 14, 30, 0.7)",
+            }}
+            onClick={() => setOpen(false)}
+            aria-label="Close dev drawer"
+          >
+            <span className="font-mono text-[10px] uppercase tracking-[0.14em]">Close</span>
+          </button>
+
+          <div className="border-b px-3 py-2" style={{ borderColor: "rgba(0, 240, 255, 0.18)" }}>
+            <div className="flex items-center justify-between gap-3">
+              <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-neon-cyan">Dev Drawer</span>
+              <span className="font-mono text-[10px]" style={{ color: "var(--copy-muted)" }}>
+                {showTabHint ? "TAB" : ""}
+              </span>
+            </div>
+          </div>
+
+          <div className="grid h-[calc(100%-42px)] gap-2 overflow-y-auto px-2 py-2">
+            <SectionCard title="Globe Core" active>
             <ToggleControl
               id="dev-auto-rotate"
               label="Auto rotate"
@@ -529,7 +565,14 @@ export default function DevDrawer({
             />
           </SectionCard>
 
-          <SectionCard title="WarGames Values" active={globeSettings.globeExperimentMode === "wargames"}>
+          <SectionCard title="WarGames Values" active={globeSettings.enableWarGamesEffect}>
+            <ToggleControl
+              id="dev-war-enable"
+              label="Enable WarGames"
+              checked={globeSettings.enableWarGamesEffect}
+              onChange={(value) => onGlobeChange({ ...globeSettings, enableWarGamesEffect: value })}
+            />
+
             <NumberControl
               id="dev-war-density"
               label="Line density"
@@ -561,7 +604,14 @@ export default function DevDrawer({
             />
           </SectionCard>
 
-          <SectionCard title="Paper Values" active={globeSettings.globeExperimentMode === "paper"}>
+          <SectionCard title="Paper Values" active={globeSettings.enablePaperEffect}>
+            <ToggleControl
+              id="dev-paper-enable"
+              label="Enable Paper"
+              checked={globeSettings.enablePaperEffect}
+              onChange={(value) => onGlobeChange({ ...globeSettings, enablePaperEffect: value })}
+            />
+
             <NumberControl
               id="dev-paper-grain"
               label="Grain"
@@ -861,6 +911,7 @@ export default function DevDrawer({
           </div>
         </div>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }

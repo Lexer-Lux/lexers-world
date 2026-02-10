@@ -21,6 +21,8 @@ export interface GlobeRuntimeSettings {
   showBoundaryTiers: boolean;
   showCurvedTitle: boolean;
   globeExperimentMode: GlobeExperimentMode;
+  enableWarGamesEffect: boolean;
+  enablePaperEffect: boolean;
   warGamesLineDensity: number;
   warGamesGlowStrength: number;
   warGamesSweepStrength: number;
@@ -50,6 +52,8 @@ export const DEFAULT_GLOBE_RUNTIME_SETTINGS: GlobeRuntimeSettings = {
   showBoundaryTiers: true,
   showCurvedTitle: true,
   globeExperimentMode: "default",
+  enableWarGamesEffect: false,
+  enablePaperEffect: false,
   warGamesLineDensity: 11,
   warGamesGlowStrength: 1,
   warGamesSweepStrength: 0.9,
