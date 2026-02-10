@@ -13,7 +13,6 @@ import { DEFAULT_GLOBE_RUNTIME_SETTINGS } from "@/lib/globe-settings";
 import { OUTSIDER_PRIVACY_DISCLAIMER, REDACTED_ADDRESS_LABEL } from "@/lib/privacy-constants";
 import type { EventsApiResponse, LexerEvent, ViewerMode } from "@/lib/types";
 import { getSupabaseBrowserClient, isSupabaseBrowserConfigured } from "@/lib/supabase";
-import CurvedTitle from "@/components/CurvedTitle";
 import DevDrawer from "@/components/DevDrawer";
 import EventListPanel from "@/components/EventListPanel";
 import EventDetailView from "@/components/EventDetailView";
@@ -47,7 +46,6 @@ export default function Home() {
 
   const [session, setSession] = useState<Session | null>(null);
   const [authState, setAuthState] = useState<AuthState>("unauthenticated");
-  const [globeAltitude, setGlobeAltitude] = useState(2.5);
   const [runtimeSettings, setRuntimeSettings] = useState(DEFAULT_GLOBE_RUNTIME_SETTINGS);
   const [aestheticSettings, setAestheticSettings] =
     useState<AestheticRuntimeSettings>(DEFAULT_AESTHETIC_RUNTIME_SETTINGS);
@@ -217,9 +215,6 @@ export default function Home() {
   const isWarGamesMode = runtimeSettings.globeExperimentMode === "wargames";
   const isPaperMode = runtimeSettings.globeExperimentMode === "paper";
 
-  const showCurvedTitle =
-    runtimeSettings.showCurvedTitle && globeAltitude >= runtimeSettings.zoomThreshold;
-
   const runtimeCssVars = useMemo(
     () =>
       ({
@@ -349,7 +344,6 @@ export default function Home() {
         onLocationClick={handleLocationClick}
         onEventClick={handleEventClick}
         runtimeSettings={runtimeSettings}
-        onAltitudeChange={setGlobeAltitude}
       />
 
       {/* Lock icon — auth UI */}
@@ -360,19 +354,6 @@ export default function Home() {
         onSignIn={handleSignIn}
         onSignOut={handleSignOut}
       />
-
-      <CurvedTitle visible={showCurvedTitle} />
-
-      <div
-        className={`pointer-events-none absolute left-1/2 top-4 z-10 -translate-x-1/2 select-none transition-opacity duration-300 sm:hidden ${showCurvedTitle ? "opacity-100" : "opacity-0"}`}
-      >
-        <h1
-          className="font-mono text-lg font-black uppercase tracking-[0.18em] text-neon-pink"
-          style={{ textShadow: "var(--glow-pink)" }}
-        >
-          LEXER&apos;S WORLD
-        </h1>
-      </div>
 
       {/* Event list panel */}
       {selectedLocation && !selectedEvent && (
@@ -398,10 +379,11 @@ export default function Home() {
       {viewerMode === "outsider" && (
         <div className="mobile-safe-bottom absolute bottom-1 left-1/2 z-10 -translate-x-1/2 px-4 pointer-events-none">
           <p
-            className="font-mono text-center text-[10px] uppercase tracking-wide sm:text-xs"
+            className="font-mono text-center text-[9px] tracking-wide leading-tight sm:text-[10px]"
             style={{
               color: "rgba(255, 225, 86, 0.9)",
               textShadow: "0 0 8px rgba(255, 225, 86, 0.25)",
+              maxWidth: "92vw",
             }}
           >
             {privacyDisclaimer}
@@ -413,12 +395,10 @@ export default function Home() {
         href={LEXER_TWITTER_URL}
         target="_blank"
         rel="noopener noreferrer"
-        className="mobile-safe-bottom fixed bottom-2 right-3 z-40 rounded-md border px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.22em]"
+        className="mobile-safe-bottom fixed bottom-2 right-3 z-40 font-mono text-[18px] font-bold uppercase tracking-[0.18em]"
         style={{
           color: "var(--neon-cyan)",
-          borderColor: "var(--border-cyan)",
-          background: "rgba(0, 240, 255, 0.1)",
-          boxShadow: "0 0 12px rgba(0, 240, 255, 0.2)",
+          textShadow: "0 0 12px rgba(0, 240, 255, 0.42)",
         }}
       >
         LEXER

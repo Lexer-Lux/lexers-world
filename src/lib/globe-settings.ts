@@ -4,6 +4,9 @@ export interface GlobeRuntimeSettings {
   zoomThreshold: number;
   autoRotate: boolean;
   autoRotateSpeed: number;
+  dragRotateSpeed: number;
+  useInertia: boolean;
+  inertiaDamping: number;
   wireStrength: number;
   hatchStrength: number;
   crosshatchDensity: number;
@@ -29,7 +32,10 @@ export interface GlobeRuntimeSettings {
 export const DEFAULT_GLOBE_RUNTIME_SETTINGS: GlobeRuntimeSettings = {
   zoomThreshold: 1.8,
   autoRotate: true,
-  autoRotateSpeed: 0.4,
+  autoRotateSpeed: 0.14,
+  dragRotateSpeed: 1.1,
+  useInertia: false,
+  inertiaDamping: 0.22,
   wireStrength: 1,
   hatchStrength: 1,
   crosshatchDensity: 1,

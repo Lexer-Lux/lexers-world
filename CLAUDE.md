@@ -25,7 +25,7 @@ Interactive web app featuring a 3D globe showing events at key locations worldwi
 - London, UK
 - New York, NY
 - Toronto, ON
-- Montréal, QC
+- Austin, TX
 - (These are a subset of cities from whatever mapping data source is used)
 
 ### Event Data Model
@@ -168,8 +168,4 @@ Interactive web app featuring a 3D globe showing events at key locations worldwi
 - [ ] TBD (deferred)
 
 ## Open Questions
-1. ~~Tech stack confirmation~~ — decided: Next.js + react-globe.gl + Tailwind + Supabase
-2. ~~How should events be managed?~~ — decided for Phase 2: direct DB edits
-3. ~~Globe library choice~~ — decided: react-globe.gl
-4. ~~Location privacy approach for recurrent events~~ — decided: HMAC seeded by precise coordinates
-5. ~~Mobile-first or desktop-first?~~ — resolved: desktop-first implementation with mobile polish passes completed
+None currently.

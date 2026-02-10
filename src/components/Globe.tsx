@@ -9,10 +9,13 @@ import {
   GlobeExperimentMode,
   GlobeRuntimeSettings,
 } from "@/lib/globe-settings";
-import type { KeyLocation, LexerEvent } from "@/lib/types";
+import type { LexerEvent } from "@/lib/types";
 
 const SUN_DIRECTION = new Vector3(0.84, 0.28, 0.46).normalize();
-const HIGHLIGHTED_LOCATION_IDS = new Set(["bay-area", "new-york"]);
+const TITLE_MARKER_ID = "globe-title";
+const TITLE_MARKER_LAT = 70;
+const TITLE_MARKER_LNG = -40;
+const EARTH_TEXTURE_URL = "https://unpkg.com/three-globe/example/img/earth-night.jpg";
 
 type BoundaryTier = "country" | "admin1" | "admin2";
 
@@ -43,8 +46,22 @@ interface GlobeProps {
   onLocationClick: (locationName: string) => void;
   onEventClick: (event: LexerEvent) => void;
   runtimeSettings?: GlobeRuntimeSettings;
-  onAltitudeChange?: (altitude: number) => void;
 }
+
+type GlobeHtmlElementData =
+  | {
+      id: typeof TITLE_MARKER_ID;
+      lat: number;
+      lng: number;
+      kind: "title";
+    }
+  | {
+      id: string;
+      lat: number;
+      lng: number;
+      name: string;
+      kind: "location";
+    };
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -124,20 +141,20 @@ const ADMIN2_BOUNDARY_ARCS = createBoundaryTier(11.25, 8, "admin2");
 
 function getBoundaryColor(mode: GlobeExperimentMode, tier: BoundaryTier): string {
   if (mode === "wargames") {
-    if (tier === "country") return "rgba(104, 255, 189, 0.65)";
-    if (tier === "admin1") return "rgba(87, 225, 163, 0.45)";
-    return "rgba(74, 189, 141, 0.3)";
+    if (tier === "country") return "rgba(144, 255, 211, 0.9)";
+    if (tier === "admin1") return "rgba(109, 245, 188, 0.75)";
+    return "rgba(86, 226, 168, 0.6)";
   }
 
   if (mode === "paper") {
-    if (tier === "country") return "rgba(86, 67, 45, 0.6)";
-    if (tier === "admin1") return "rgba(103, 81, 55, 0.42)";
-    return "rgba(122, 99, 72, 0.28)";
+    if (tier === "country") return "rgba(105, 76, 47, 0.86)";
+    if (tier === "admin1") return "rgba(121, 89, 58, 0.68)";
+    return "rgba(142, 107, 73, 0.52)";
   }
 
-  if (tier === "country") return "rgba(161, 213, 255, 0.62)";
-  if (tier === "admin1") return "rgba(114, 182, 255, 0.45)";
-  return "rgba(122, 167, 255, 0.28)";
+  if (tier === "country") return "rgba(194, 231, 255, 0.92)";
+  if (tier === "admin1") return "rgba(147, 207, 255, 0.76)";
+  return "rgba(114, 187, 255, 0.58)";
 }
 
 function scaleRgbaAlpha(color: string, alphaScale: number): string {
@@ -155,22 +172,16 @@ function scaleRgbaAlpha(color: string, alphaScale: number): string {
   return `rgba(${red}, ${green}, ${blue}, ${scaledAlpha.toFixed(3)})`;
 }
 
-function getMarkerPalette(mode: GlobeExperimentMode, highlighted: boolean): { fill: string; stroke: string } {
+function getMarkerPalette(mode: GlobeExperimentMode): { fill: string; stroke: string } {
   if (mode === "wargames") {
-    return highlighted
-      ? { fill: "#8dfec8", stroke: "#ceffeb" }
-      : { fill: "#4ba57e", stroke: "#8fe0ba" };
+    return { fill: "#ff2d75", stroke: "#ff95b7" };
   }
 
   if (mode === "paper") {
-    return highlighted
-      ? { fill: "#ca5b32", stroke: "#f0c58f" }
-      : { fill: "#78644f", stroke: "#bda58a" };
+    return { fill: "#ff2d75", stroke: "#ffd0e0" };
   }
 
-  return highlighted
-    ? { fill: "#ff1744", stroke: "#ff6e80" }
-    : { fill: "#94a0bb", stroke: "#c5d0e8" };
+  return { fill: "#ff1744", stroke: "#ff8aa5" };
 }
 
 function getPointColor(mode: GlobeExperimentMode): string {
@@ -266,7 +277,7 @@ vec3 nightColor = vec3(0.015, 0.028, 0.08);
 
 vec3 ink = mix(nightColor, dayColor, dayMix);
 ink = mix(ink, twilightColor, smoothstep(-0.08, 0.08, sunDot) * 0.44);
-diffuseColor.rgb = mix(diffuseColor.rgb, ink, 0.94);
+diffuseColor.rgb = mix(diffuseColor.rgb, ink, 0.58);
 
 float terminatorNoise = sin(vWorldPosition.x * 0.07 + vWorldPosition.y * 0.11 + vWorldPosition.z * 0.09) * 0.5 + 0.5;
 float terminatorBand = (1.0 - smoothstep(0.0, 0.06, abs(sunDot))) * mix(0.78, 1.22, terminatorNoise);
@@ -405,13 +416,11 @@ export default function Globe({
   onLocationClick,
   onEventClick,
   runtimeSettings,
-  onAltitudeChange,
 }: GlobeProps) {
   const settings = runtimeSettings ?? DEFAULT_GLOBE_RUNTIME_SETTINGS;
   const mode = settings.globeExperimentMode;
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
   const onLocationClickRef = useRef(onLocationClick);
-  const onAltitudeChangeRef = useRef(onAltitudeChange);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [altitude, setAltitude] = useState(2.5);
   const performanceProfile = useMemo(() => getPerformanceProfile(), []);
@@ -419,10 +428,6 @@ export default function Globe({
   useEffect(() => {
     onLocationClickRef.current = onLocationClick;
   }, [onLocationClick]);
-
-  useEffect(() => {
-    onAltitudeChangeRef.current = onAltitudeChange;
-  }, [onAltitudeChange]);
 
   const globeMaterial = useMemo(() => {
     const detailStrength = getDetailStrength(performanceProfile.lowPower);
@@ -585,12 +590,10 @@ uniform float uWireStrength;`
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, performanceProfile.maxPixelRatio));
 
     const controls = globe.controls();
-    controls.enableDamping = true;
 
     const handleControlsChange = () => {
       const pov = globe.pointOfView();
       setAltitude(pov.altitude);
-      onAltitudeChangeRef.current?.(pov.altitude);
     };
 
     handleControlsChange();
@@ -609,7 +612,16 @@ uniform float uWireStrength;`
 
     controls.autoRotate = settings.autoRotate;
     controls.autoRotateSpeed = settings.autoRotateSpeed;
-  }, [settings.autoRotate, settings.autoRotateSpeed]);
+    controls.rotateSpeed = settings.dragRotateSpeed;
+    controls.enableDamping = settings.useInertia;
+    controls.dampingFactor = settings.useInertia ? settings.inertiaDamping : 0;
+  }, [
+    settings.autoRotate,
+    settings.autoRotateSpeed,
+    settings.dragRotateSpeed,
+    settings.inertiaDamping,
+    settings.useInertia,
+  ]);
 
   useEffect(
     () => () => {
@@ -619,14 +631,33 @@ uniform float uWireStrength;`
   );
 
   const markerHtml = useCallback(
-    (data: object) => {
-      const location = data as KeyLocation;
+    (data: GlobeHtmlElementData) => {
+      if (data.kind === "title") {
+        return `
+          <div style="
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            width: 280px;
+            opacity: 0.95;
+          ">
+            <svg viewBox="0 0 560 170" role="presentation" focusable="false" style="width: 100%; height: auto; overflow: visible;">
+              <defs>
+                <path id="lexer-title-arc" d="M 54 148 A 226 226 0 0 1 506 148" />
+              </defs>
+              <text fill="#ff2d75" font-size="38" font-weight="800" letter-spacing="0.2em" style="font-family:monospace;filter: drop-shadow(0 0 8px rgba(255,45,117,0.55));">
+                <textPath href="#lexer-title-arc" startOffset="50%" text-anchor="middle">LEXER'S WORLD</textPath>
+              </text>
+            </svg>
+          </div>
+        `;
+      }
+
+      const location = data;
       if (!isZoomedOut) {
         return "";
       }
 
-      const highlighted = HIGHLIGHTED_LOCATION_IDS.has(location.id);
-      const palette = getMarkerPalette(mode, highlighted);
+      const palette = getMarkerPalette(mode);
       const markerSize = Math.max(14, Math.round(24 * markerScale));
       const labelFontSize = Math.max(9, Math.round(11 * markerScale));
       const labelMarginTop = Math.max(2, Math.round(2 * markerScale));
@@ -659,6 +690,30 @@ uniform float uWireStrength;`
     [isZoomedOut, markerScale, mode]
   );
 
+  const htmlElementsData = useMemo<GlobeHtmlElementData[]>(() => {
+    const data: GlobeHtmlElementData[] = [];
+
+    if (settings.showCurvedTitle) {
+      data.push({
+        id: TITLE_MARKER_ID,
+        lat: TITLE_MARKER_LAT,
+        lng: TITLE_MARKER_LNG,
+        kind: "title",
+      });
+    }
+
+    if (isZoomedOut) {
+      data.push(
+        ...KEY_LOCATIONS.map((location) => ({
+          ...location,
+          kind: "location" as const,
+        }))
+      );
+    }
+
+    return data;
+  }, [isZoomedOut, settings.showCurvedTitle]);
+
   return (
     <ReactGlobe
       ref={globeRef}
@@ -666,9 +721,9 @@ uniform float uWireStrength;`
       height={dimensions.height}
       backgroundColor="rgba(0,0,0,0)"
       backgroundImageUrl={null}
-      globeImageUrl={null}
+      globeImageUrl={EARTH_TEXTURE_URL}
       globeMaterial={globeMaterial}
-      showGraticules={false}
+      showGraticules={mode === "default"}
       showAtmosphere={settings.showAtmosphere}
       atmosphereColor={atmosphereColor}
       atmosphereAltitude={atmosphereAltitude}
@@ -683,15 +738,15 @@ uniform float uWireStrength;`
       }
       arcAltitude={(data: object) => {
         const tier = (data as BoundaryArc).tier;
-        if (tier === "country") return 0.012;
-        if (tier === "admin1") return 0.009;
-        return 0.006;
+        if (tier === "country") return 0.016;
+        if (tier === "admin1") return 0.012;
+        return 0.008;
       }}
       arcStroke={(data: object) => {
         const tier = (data as BoundaryArc).tier;
-        if (tier === "country") return 0.64;
-        if (tier === "admin1") return 0.42;
-        return 0.24;
+        if (tier === "country") return 0.98;
+        if (tier === "admin1") return 0.64;
+        return 0.36;
       }}
       arcDashLength={(data: object) => {
         const tier = (data as BoundaryArc).tier;
@@ -707,22 +762,28 @@ uniform float uWireStrength;`
       }}
       arcDashAnimateTime={0}
       arcsTransitionDuration={0}
-      htmlElementsData={isZoomedOut ? KEY_LOCATIONS : []}
-      htmlLat={(data) => (data as KeyLocation).lat}
-      htmlLng={(data) => (data as KeyLocation).lng}
+      htmlElementsData={htmlElementsData}
+      htmlLat={(data) => (data as GlobeHtmlElementData).lat}
+      htmlLng={(data) => (data as GlobeHtmlElementData).lng}
       htmlElement={(data) => {
-        const location = data as KeyLocation;
+        const htmlData = data as GlobeHtmlElementData;
         const element = document.createElement("div");
-        element.innerHTML = markerHtml(data);
-        element.style.pointerEvents = "auto";
-        element.style.cursor = "pointer";
-        element.onclick = (event) => {
-          event.stopPropagation();
-          onLocationClickRef.current(location.name);
-        };
+        element.innerHTML = markerHtml(htmlData);
+
+        if (htmlData.kind === "location") {
+          element.style.pointerEvents = "auto";
+          element.style.cursor = "pointer";
+          element.onclick = (event) => {
+            event.stopPropagation();
+            onLocationClickRef.current(htmlData.name);
+          };
+        } else {
+          element.style.pointerEvents = "none";
+        }
+
         return element;
       }}
-      htmlAltitude={0}
+      htmlAltitude={(data) => ((data as GlobeHtmlElementData).kind === "title" ? 0.2 : 0)}
       htmlTransitionDuration={0}
       pointsData={isZoomedOut ? [] : events}
       pointLat={(data) => (data as LexerEvent).lat}

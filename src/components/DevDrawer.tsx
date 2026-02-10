@@ -248,15 +248,22 @@ export default function DevDrawer({
   onAestheticChange,
 }: DevDrawerProps) {
   const [open, setOpen] = useState(false);
-  const isRelease = process.env.NODE_ENV === "production";
 
   useEffect(() => {
-    if (isRelease) {
-      return;
-    }
-
     const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const targetTag = target?.tagName;
+      const editingTarget =
+        target?.isContentEditable ||
+        targetTag === "INPUT" ||
+        targetTag === "TEXTAREA" ||
+        targetTag === "SELECT";
+
       if (event.key !== "Tab" || event.altKey || event.ctrlKey || event.metaKey) {
+        return;
+      }
+
+      if (editingTarget) {
         return;
       }
 
@@ -266,17 +273,13 @@ export default function DevDrawer({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isRelease]);
+  }, []);
 
   const wrapperClassName = useMemo(
     () =>
       `fixed bottom-4 right-4 z-50 w-[min(92vw,420px)] transition-transform duration-300 ${open ? "translate-x-0" : "translate-x-[calc(100%-44px)]"}`,
     [open]
   );
-
-  if (isRelease) {
-    return null;
-  }
 
   return (
     <aside className={wrapperClassName}>
@@ -313,12 +316,39 @@ export default function DevDrawer({
 
             <NumberControl
               id="dev-auto-rotate-speed"
-              label="Rotate speed"
+              label="Idle spin speed"
               min={0}
-              max={1.6}
-              step={0.05}
+              max={1.2}
+              step={0.01}
               value={globeSettings.autoRotateSpeed}
               onChange={(value) => onGlobeChange({ ...globeSettings, autoRotateSpeed: value })}
+            />
+
+            <NumberControl
+              id="dev-drag-rotate-speed"
+              label="Drag rotate speed"
+              min={0.2}
+              max={2.4}
+              step={0.05}
+              value={globeSettings.dragRotateSpeed}
+              onChange={(value) => onGlobeChange({ ...globeSettings, dragRotateSpeed: value })}
+            />
+
+            <ToggleControl
+              id="dev-use-inertia"
+              label="Drag inertia"
+              checked={globeSettings.useInertia}
+              onChange={(value) => onGlobeChange({ ...globeSettings, useInertia: value })}
+            />
+
+            <NumberControl
+              id="dev-inertia-damping"
+              label="Inertia damping"
+              min={0.02}
+              max={0.35}
+              step={0.01}
+              value={globeSettings.inertiaDamping}
+              onChange={(value) => onGlobeChange({ ...globeSettings, inertiaDamping: value })}
             />
 
             <NumberControl

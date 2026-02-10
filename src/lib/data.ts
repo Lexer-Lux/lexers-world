@@ -5,7 +5,7 @@ export const KEY_LOCATIONS: KeyLocation[] = [
   { id: "london", name: "London, UK", lat: 51.5074, lng: -0.1278 },
   { id: "new-york", name: "New York, NY", lat: 40.7128, lng: -74.006 },
   { id: "toronto", name: "Toronto, ON", lat: 43.6532, lng: -79.3832 },
-  { id: "montreal", name: "Montréal, QC", lat: 45.5017, lng: -73.5673 },
+  { id: "austin", name: "Austin, TX", lat: 30.2672, lng: -97.7431 },
 ];
 
 // Currency symbol lookup
