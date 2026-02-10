@@ -27,19 +27,14 @@ export default function GlobeTitlePlane({ altitude, enabled }: GlobeTitlePlanePr
   const layout = useMemo(() => {
     const width = viewport.width || 1280;
     const height = viewport.height || 720;
-    const base = Math.min(width, height);
-    const globeRadius = base * 0.335;
+    const minSide = Math.min(width, height);
+    const zoom = clamp((2.75 - altitude) / 1.9, 0, 1);
+    const globeRadius = minSide * (0.28 + zoom * 0.42);
 
-    const rawVisibility = (altitude - 1.01) / 1.32;
-    const visibility = clamp(rawVisibility, 0, 1);
-
-    const titleTop = height * 0.5 - globeRadius - 44;
-    const scale = 0.7 + visibility * 0.5;
+    const titleTop = height * 0.5 - globeRadius - 42;
 
     return {
-      top: clamp(titleTop, 18, height * 0.46),
-      visibility,
-      scale,
+      top: titleTop,
     };
   }, [altitude, viewport.height, viewport.width]);
 
@@ -52,10 +47,10 @@ export default function GlobeTitlePlane({ altitude, enabled }: GlobeTitlePlanePr
       className="pointer-events-none absolute left-1/2 z-10 -translate-x-1/2"
       style={{
         top: `${layout.top}px`,
-        opacity: layout.visibility,
-        transform: `translateX(-50%) scale(${layout.scale})`,
+        opacity: 1,
+        transform: "translateX(-50%)",
         transformOrigin: "center center",
-        transition: "opacity 120ms linear, transform 120ms linear, top 120ms linear",
+        transition: "top 120ms linear",
       }}
       aria-hidden
     >

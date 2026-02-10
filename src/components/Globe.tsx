@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactGlobe, { GlobeMethods } from "react-globe.gl";
-import { Color, MeshPhongMaterial, Vector3 } from "three";
+import { Color, MeshPhongMaterial, SRGBColorSpace, TextureLoader, Vector3 } from "three";
 import { KEY_LOCATIONS } from "@/lib/data";
 import {
   DEFAULT_GLOBE_RUNTIME_SETTINGS,
@@ -234,7 +234,7 @@ function getMaterialPalette(warEnabled: boolean, paperEnabled: boolean): {
 } {
   if (warEnabled && paperEnabled) {
     return {
-      color: "#154037",
+      color: "#ffffff",
       emissive: "#101713",
       emissiveIntensity: 0.52,
       specular: "#d2eec6",
@@ -244,7 +244,7 @@ function getMaterialPalette(warEnabled: boolean, paperEnabled: boolean): {
 
   if (warEnabled) {
     return {
-      color: "#0a1912",
+      color: "#ffffff",
       emissive: "#04150d",
       emissiveIntensity: 0.88,
       specular: "#8dffc9",
@@ -254,7 +254,7 @@ function getMaterialPalette(warEnabled: boolean, paperEnabled: boolean): {
 
   if (paperEnabled) {
     return {
-      color: "#d6c7ab",
+      color: "#ffffff",
       emissive: "#21180f",
       emissiveIntensity: 0.22,
       specular: "#e7d9bf",
@@ -263,7 +263,7 @@ function getMaterialPalette(warEnabled: boolean, paperEnabled: boolean): {
   }
 
   return {
-    color: "#1f66ff",
+    color: "#ffffff",
     emissive: "#040916",
     emissiveIntensity: 0.62,
     specular: "#71e8ff",
@@ -481,6 +481,23 @@ export default function Globe({
   const [countryPolygons, setCountryPolygons] = useState<GeoFeature[]>([]);
   const performanceProfile = useMemo(() => getPerformanceProfile(), []);
 
+  const earthTexture = useMemo(() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+
+    const texture = new TextureLoader().load(EARTH_TEXTURE_URL);
+    texture.colorSpace = SRGBColorSpace;
+    return texture;
+  }, []);
+
+  useEffect(
+    () => () => {
+      earthTexture?.dispose();
+    },
+    [earthTexture]
+  );
+
   useEffect(() => {
     onLocationClickRef.current = onLocationClick;
   }, [onLocationClick]);
@@ -501,6 +518,7 @@ export default function Globe({
       emissiveIntensity: palette.emissiveIntensity,
       specular: new Color(palette.specular),
       shininess: palette.shininess,
+      map: earthTexture ?? undefined,
     });
 
     const uniforms: GlobeShaderUniforms = {
@@ -572,6 +590,7 @@ uniform float uWireStrength;`
   }, [
     warEnabled,
     paperEnabled,
+    earthTexture,
     performanceProfile.lowPower,
     settings,
   ]);

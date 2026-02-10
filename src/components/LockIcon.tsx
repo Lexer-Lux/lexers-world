@@ -62,9 +62,12 @@ export default function LockIcon({
       }}
     >
       <div
-        className="relative flex h-10 items-center overflow-hidden rounded-md border transition-[width] duration-200"
+        className="relative flex items-start overflow-hidden rounded-md border transition-[width,max-height,padding] duration-200"
         style={{
           width: isExpanded ? "min(86vw, 340px)" : "40px",
+          maxHeight: isExpanded ? "200px" : "40px",
+          paddingTop: isExpanded ? "3px" : "0px",
+          paddingBottom: isExpanded ? "3px" : "0px",
           borderColor: color,
           background: "rgba(8, 11, 24, 0.84)",
           boxShadow: `0 0 12px ${color}`,
@@ -114,7 +117,7 @@ export default function LockIcon({
         </button>
 
         <div
-          className="min-w-0 px-1.5 py-1"
+          className="min-w-0 px-1.5 py-0.5"
           style={{
             opacity: isExpanded ? 1 : 0,
             transition: "opacity 120ms linear",
