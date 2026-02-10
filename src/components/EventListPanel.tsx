@@ -2,7 +2,9 @@
 
 import { LexerEvent } from "@/lib/types";
 import { formatCost } from "@/lib/data";
+import { LEXER_TWITTER_URL } from "@/lib/app-config";
 import FlipDate from "./FlipDate";
+import LexerPresenceIcon from "./LexerPresenceIcon";
 import RecurringBadge from "./RecurringBadge";
 
 interface EventListPanelProps {
@@ -10,6 +12,7 @@ interface EventListPanelProps {
   events: LexerEvent[];
   onEventClick: (event: LexerEvent) => void;
   onClose: () => void;
+  twitterUrl?: string;
 }
 
 export default function EventListPanel({
@@ -17,126 +20,157 @@ export default function EventListPanel({
   events,
   onEventClick,
   onClose,
+  twitterUrl = LEXER_TWITTER_URL,
 }: EventListPanelProps) {
   return (
     <div className="fixed inset-0 z-20 pointer-events-none">
       {/* Backdrop — click to close */}
       <div
-        className="absolute inset-0 pointer-events-auto"
+        className="absolute inset-0 pointer-events-auto animate-[fadeIn_0.2s_ease-out]"
+        style={{ background: "rgba(2, 4, 12, 0.38)" }}
         onClick={onClose}
       />
 
       {/* Panel */}
       <div
-        className="absolute right-0 top-0 h-full w-full max-w-md pointer-events-auto
-          animate-[slideIn_0.3s_ease-out]"
+        className="panel-shell benday-overlay scanline motion-lines absolute inset-x-0 bottom-0 top-auto h-[76vh]
+          rounded-t-2xl pointer-events-auto overflow-hidden animate-[slideUp_0.32s_cubic-bezier(0.16,1,0.3,1)]
+          sm:inset-y-0 sm:left-auto sm:right-0 sm:h-full sm:w-full sm:max-w-md sm:rounded-none sm:animate-[slideIn_0.3s_ease-out]"
         style={{
-          background: "rgba(10, 10, 20, 0.92)",
-          borderLeft: "1px solid rgba(176, 38, 255, 0.4)",
-          boxShadow: "-4px 0 30px rgba(176, 38, 255, 0.15)",
-          backdropFilter: "blur(12px)",
+          borderLeft: "1px solid var(--border-purple)",
+          borderTop: "1px solid var(--border-purple)",
         }}
       >
-        {/* Header */}
-        <div
-          className="flex items-center justify-between px-6 py-5"
-          style={{ borderBottom: "1px solid rgba(255, 45, 117, 0.3)" }}
-        >
-          <h2
-            className="text-xl font-bold tracking-wide uppercase"
-            style={{
-              color: "#ff2d75",
-              textShadow: "0 0 8px rgba(255, 45, 117, 0.6)",
-              fontFamily: "monospace",
-            }}
+        <div className="flex h-full flex-col">
+          {/* Header */}
+          <div
+            className="relative z-[2] flex items-center justify-between px-4 py-4 sm:px-6 sm:py-5"
+            style={{ borderBottom: "1px solid var(--border-pink)" }}
           >
-            {locationName}
-          </h2>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded transition-colors
-              hover:bg-white/10 cursor-pointer"
-            style={{ color: "#ff2d75" }}
-          >
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-              <path
-                d="M4 4l10 10M14 4L4 14"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-            </svg>
-          </button>
-        </div>
-
-        {/* Event list */}
-        <div className="overflow-y-auto px-4 py-3" style={{ height: "calc(100% - 72px)" }}>
-          {events.length === 0 ? (
-            <p
-              className="text-center py-10 text-sm"
-              style={{ color: "rgba(255, 255, 255, 0.4)", fontFamily: "monospace" }}
+            <div>
+              <h2
+                className="font-mono text-lg font-bold uppercase tracking-[0.14em] text-neon-pink sm:text-xl"
+                style={{ textShadow: "var(--glow-pink-sm)" }}
+              >
+                {locationName}
+              </h2>
+              <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.2em]" style={{ color: "var(--copy-muted)" }}>
+                {events.length} incoming signal{events.length === 1 ? "" : "s"}
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              aria-label="Close event list"
+              className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-white/10"
+              style={{ color: "var(--neon-pink)" }}
             >
-              No events at this location yet.
-            </p>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {events.map((event) => (
-                <button
-                  key={event.id}
-                  onClick={() => onEventClick(event)}
-                  className="relative text-left rounded-lg p-4 transition-all cursor-pointer
-                    hover:scale-[1.02]"
-                  style={{
-                    background: "rgba(255, 45, 117, 0.06)",
-                    border: "1px solid rgba(255, 45, 117, 0.15)",
-                    boxShadow: "0 0 0 rgba(255, 45, 117, 0)",
-                    transition: "all 0.2s ease",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.border = "1px solid rgba(255, 45, 117, 0.4)";
-                    e.currentTarget.style.boxShadow = "0 0 15px rgba(255, 45, 117, 0.1)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.border = "1px solid rgba(255, 45, 117, 0.15)";
-                    e.currentTarget.style.boxShadow = "0 0 0 rgba(255, 45, 117, 0)";
-                  }}
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                <path
+                  d="M4 4l10 10M14 4L4 14"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+            <span className="comic-caption font-comic absolute -bottom-3 left-4 text-[11px]">WHOOSH!</span>
+          </div>
+
+          {/* Event list */}
+          <div className="relative z-[2] flex-1 overflow-y-auto px-3 py-3 sm:px-4">
+            {events.length === 0 ? (
+              <p className="py-10 text-center font-mono text-sm" style={{ color: "rgba(255, 255, 255, 0.55)" }}>
+                nothing&apos;s here :( know about an event i might enjoy?{" "}
+                <a
+                  href={twitterUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline underline-offset-4"
+                  style={{ color: "var(--neon-cyan)" }}
                 >
-                  {event.recurrent && (
-                    <div className="absolute top-3 right-3">
-                      <RecurringBadge />
-                    </div>
-                  )}
-                  <h3
-                    className="text-base font-bold mb-1 pr-10"
-                    style={{ color: "#00f0ff", fontFamily: "monospace" }}
-                  >
-                    {event.name}
-                  </h3>
-                  <div
-                    className="flex items-center gap-3 text-xs mb-2"
-                    style={{ color: "rgba(255, 255, 255, 0.5)", fontFamily: "monospace" }}
-                  >
-                    <FlipDate iso={event.date} />
-                    <span style={{ color: event.cost === 0 ? "#00f0ff" : "#ff2d75" }}>
-                      {formatCost(event.cost, event.currency, event.hasAdditionalTiers)}
-                    </span>
-                  </div>
-                  <p
-                    className="text-sm leading-relaxed"
+                  hit me up
+                </a>
+                !
+              </p>
+            ) : (
+              <div className="flex flex-col gap-3 pb-1">
+                {events.map((event, index) => (
+                  <button
+                    key={event.id}
+                    onClick={() => onEventClick(event)}
+                    className="group/card benday-dense relative cursor-pointer rounded-lg p-3 text-left transition-all
+                      hover:scale-[1.015] hover:-translate-y-[1px] active:scale-[0.99] sm:p-4"
                     style={{
-                      color: "rgba(255, 255, 255, 0.7)",
-                      display: "-webkit-box",
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: "vertical",
-                      overflow: "hidden",
+                      background: "linear-gradient(145deg, rgba(255, 45, 117, 0.09), rgba(176, 38, 255, 0.08))",
+                      border: "1px solid rgba(255, 45, 117, 0.2)",
+                      animation: `staggerUp 0.3s ease-out ${index * 0.06}s both`,
+                      transition: "border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = "rgba(255, 45, 117, 0.45)";
+                      e.currentTarget.style.boxShadow =
+                        "0 0 18px rgba(255, 45, 117, 0.14), inset 0 0 28px rgba(255, 45, 117, 0.07)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = "rgba(255, 45, 117, 0.2)";
+                      e.currentTarget.style.boxShadow = "none";
                     }}
                   >
-                    {event.description}
-                  </p>
-                </button>
-              ))}
-            </div>
-          )}
+                    {event.recurrent && (
+                      <div className="absolute right-3 top-3">
+                        <RecurringBadge />
+                      </div>
+                    )}
+                    <div className="mb-1 flex items-center gap-2 pr-12">
+                      {event.isLexerComing === true && <LexerPresenceIcon size={16} />}
+                      <h3 className="font-mono text-sm font-bold text-neon-cyan sm:text-base">{event.name}</h3>
+                    </div>
+                    <div
+                      className="mb-2 flex items-center gap-3 font-mono text-xs"
+                      style={{ color: "rgba(255, 255, 255, 0.56)" }}
+                    >
+                      <FlipDate iso={event.date} />
+                      <span style={{ color: event.cost === 0 ? "var(--neon-cyan)" : "var(--neon-pink)" }}>
+                        {formatCost(event.cost, event.currency, event.hasAdditionalTiers)}
+                      </span>
+                    </div>
+                    <p
+                      className="text-sm leading-relaxed"
+                      style={{
+                        color: "rgba(255, 255, 255, 0.78)",
+                        display: "-webkit-box",
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: "vertical",
+                        overflow: "hidden",
+                      }}
+                    >
+                      {event.description}
+                    </p>
+
+                    <span className="font-comic absolute -top-2 right-8 text-[11px] opacity-0 transition-all duration-200 group-hover/card:opacity-100 group-hover/card:-translate-y-1" style={{ color: "var(--neon-yellow)" }}>
+                      SWISH!
+                    </span>
+
+                    {/* Comic action arrow — appears on hover */}
+                    <div
+                      className="absolute bottom-3 right-3 opacity-0 transition-opacity duration-200 group-hover/card:opacity-100"
+                      style={{ color: "var(--neon-pink)" }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path
+                          d="M3 8h8M8 4l4 4-4 4"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

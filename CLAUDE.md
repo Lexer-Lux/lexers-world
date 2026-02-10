@@ -1,7 +1,7 @@
 # Lexer's World
 
 ## Overview
-Interactive web app featuring a 3D globe showing events at key locations worldwide. Users can spin/zoom the globe to discover events. Has insider/outsider security model with Twitter SSO.
+Interactive web app featuring a 3D globe showing events at key locations worldwide. Users can spin/zoom the globe to discover events. Insider/outsider security model is planned (not shipped yet).
 
 **Notion page**: https://www.notion.so/3026947116b980029e5fd550aa1be955
 
@@ -32,12 +32,17 @@ Interactive web app featuring a 3D globe showing events at key locations worldwi
 | Field | Type | Notes |
 |-------|------|-------|
 | name | string | Event name |
+| date | datetime (ISO 8601) | Event start time |
 | manualLocation | string | Key location or nearest major city (manual/AI-set) |
-| location | coordinates | Actual physical location (encrypted for outsiders) |
+| address | string | Source-of-truth physical address |
+| lat / lng | number | Geocoded from address, cached |
 | description | text | Event description |
-| isLexerComing | boolean | Encrypted for outsiders (shows "?") |
+| isLexerComing | boolean | Planned hidden for outsiders (shows "?") |
 | recurrent | boolean | Whether event repeats |
 | inviteUrl | url | Link to apply/RSVP |
+| cost | number | Base price; `0` means free |
+| currency | string | ISO 4217 currency code |
+| hasAdditionalTiers | boolean | If true, display `+` suffix (`FREE+`, `$25+`) |
 
 ### Event View UI
 - Name in big text
@@ -46,21 +51,26 @@ Interactive web app featuring a 3D globe showing events at key locations worldwi
   - Evokes "being invited in"
 
 ### Security / Insider-Outsider Model
-- **Outsider mode**: Default view
-  - `isLexerComing` displays as "?"
-  - `location` shows glitch/censor effect (letters keep changing)
-  - Location is fuzzed (random offset within radius of true point)
-- **Insider mode**: Log in via Twitter SSO
-  - Must be mutuals with @LexerLux
-  - Full access to real locations and isLexerComing status
-- **Fuzzing concern**: Recurrent events leak location over time via multiple data points
-  - Need to research proper location privacy / differential privacy techniques
-  - Consider hardware ID seeds, consistent fuzzing per device, etc.
+- **Current implementation**
+  - Auth is not implemented yet
+  - `isLexerComing` and precise location currently render directly from event data
+  - No outsider glitch/censor treatment yet
+- **Planned outsider mode**
+  - `isLexerComing` displays as `?`
+  - Precise location is hidden/obfuscated in UI
+  - Location coordinates are deterministically fuzzed via `HMAC(precise_lat|precise_lng, FUZZ_SECRET)`
+- **Planned insider mode**
+  - Login via Twitter OAuth (through Supabase auth)
+  - Access is controlled by manual allowlist (not auto mutual-check; X API pricing)
+- **Privacy notes**
+  - Not per-city offset (too easy to correlate)
+  - Not per-event-ID offset (recurring venues leak)
+  - Not random per request (averaging attack)
 
 ## Hosting
-- No server currently available
-- Look into free hosting options (Vercel, Netlify, Cloudflare Pages, etc.)
-- Fallback: run locally and migrate later
+- Target hosting: Vercel
+- Local development works (`pnpm dev`, `pnpm build`, `pnpm lint` all clean)
+- Connect GitHub repo to Vercel dashboard still pending
 
 ## Tech Stack (DECIDED)
 - **Next.js 16** on **Vercel** (free hosting, SSR, API routes, Turbopack)
@@ -76,71 +86,90 @@ Interactive web app featuring a 3D globe showing events at key locations worldwi
 - **pnpm** for package management (shared store saves disk)
 - Globe component is client-only (dynamic import with `ssr: false`)
 
-## Planning / Phases
+## Planning / Phases (Parallel A/B Tracks)
 
-### Phase 1: Foundation -- COMPLETE
+### Phase 1: Foundation — COMPLETE
 - [x] Decide on tech stack: Next.js + react-globe.gl + Tailwind + Supabase (planned)
 - [x] Scaffold project (Next.js + react-globe.gl)
 - [x] Get basic globe rendering with zoom/spin (night earth texture, purple atmosphere, auto-rotate)
 - [x] Add key locations as red stars (zoomed out view) — 5 cities with neon-red star markers + labels
 - [x] GitHub repo: https://github.com/Lexer-Lux/lexers-world
-- [ ] Connect Vercel to GitHub repo (do via web dashboard — no disk space for CLI)
+- [x] Connect Vercel to GitHub repo (done via dashboard)
 
-### Phase 2: Fixes & Data — IN PROGRESS
-- [ ] Set up Supabase (or chosen DB)
-- [ ] Create events table with schema above
-- [ ] Build event CRUD (admin interface or Notion integration?)
-- [x] Implement zoom threshold behavior (stars <-> dots)
-- [x] Build "tap location" -> event list UI
-- [x] Build event detail view with door button animation
-- [ ] Fix: Key location stars render way above the earth surface and often thousands of miles from correct position
-- [ ] Fix: Dates should display in ISO 8601 format by default; on hover, flip animation reveals human-readable format
-- [ ] Fix: Recurring icon — move to top-right corner of event card, no text, bigger
-  - On hover: spiral-to-text animation — letters of "RECURRING!" placed along cycle arrow spiral (base to arrow tip), animation removes the line segment by segment revealing each letter, loops
+### Phase 2: Data & Runtime — COMPLETE
+#### Track A (Backend/Data Path)
+- [x] Supabase-ready events API route + typed row mapping + mock fallback (`/api/events`)
+- [x] SQL schema draft (`supabase/events-schema.sql`)
+- [x] Set Supabase env in deployment + verify `/api/events` reads live data (`source: supabase`)
+- [x] Run schema in Supabase and seed initial rows
+- [x] Add minimal data validation/monitoring for malformed event rows
 
-### Phase 3: Aesthetics
-- [ ] Ben-Day dot patterns / halftone effects
-- [ ] Synthwave color scheme (neon pink, cyan, purple on dark)
-- [ ] Motion lines and comic onomatopoeia accents
-- [ ] Smooth page transitions and micro-interactions
-- [ ] Mobile responsive design
-- [ ] Door button open/close animation
-- [ ] Glitch/censor text effects for outsider-hidden fields (try: character cycling, data-moshing/RGB-split, redacted bars)
+#### Track B (Product/Data Ops + UI Stability)
+- [x] Zoom threshold behavior (stars <-> dots)
+- [x] Tap location -> event list UI
+- [x] Event detail view + door button interaction
+- [x] Star marker positioning fix (surface alignment)
+- [x] ISO-by-default date + hover flip to human-readable
+- [x] Recurring badge top-right spiral reveal behavior
+- [x] Decide event management workflow: direct DB edits for now
 
-### Phase 4: Auth & Security
-- [ ] Twitter OAuth 2.0 SSO via Supabase (free tier — login only)
-- [ ] Manual allowlist in Supabase (replaces mutual-follow check — X API wants $200/mo for follower reads)
-- [ ] Login button with message explaining why manual list instead of auto-mutual check
-  - "We wanted to make it so logging in unlocks all info if you're my mutual, but Elon wants to charge us $200/mo for it. So I have to keep a manual list of Twitter users I know. If you're not on it, DM me @LexerLux and I'll add you (but only if you're worthy)."
-- [ ] Lock icon (top-left): locked for unapproved, unlocked for approved
-  - Hover shows approval status in bold, with explanation text below + how to get approved if unapproved
-- [ ] Row-level security / API-level field filtering: outsider vs insider views
-- [ ] Location fuzzing for outsiders: HMAC(precise_lat|precise_lng, FUZZ_SECRET) → deterministic offset
-  - Seeded by actual coordinates — same physical address always gets the same fuzz
-  - NOT per city — per-city offset is trivially detectable by comparing events in same region
-  - NOT per event ID — recurring events at same venue would get different offsets, leaking info
-  - NOT random per request — averaging attack converges on true location
-  - Secret salt (FUZZ_SECRET) stored as env var, never exposed to client
-- [ ] isLexerComing → shows "?" for outsiders (simple blackbox for now, fancy glitch effect later)
-- [ ] Precise location → blackboxed for outsiders (glitch/censor aesthetic deferred)
-- [ ] Disclaimer text at bottom of page: "Displayed locations are fuzzed for non-approved users"
+#### Phase 2 Sync Gate
+- [x] Deploy one environment backed by real Supabase data
+- [x] Smoke-test all 5 key locations with real rows and fallback behavior
 
-### Phase 5: Advanced Aesthetics
-- [ ] Replace satellite/realistic globe texture with stylized look:
-  - Option A: WarGames-style wireframe globe (like the WOPR computer scene)
-  - Option B: Papery/illustrated globe with Ben-Day dot patterning
-  - NOT photorealistic satellite imagery
-- [ ] Day/night visualization on globe:
-  - Comic-book style dotted line for the terminator (day/night boundary)
-  - Shader over nighttime hemisphere with crosshatched shadows (Borderlands cel-shading style)
-  - Reference: Borderlands 3 shader techniques for comic-book crosshatching
+### Phase 3: Visual System — COMPLETE
+#### Track A (Globe/Rendering Style)
+- [x] Replace photoreal globe with stylized approach (wireframe or illustrated)
+- [x] Add day/night treatment with comic-style terminator line
+- [x] Prototype crosshatch/night shader pass with perf guardrails
+
+#### Track B (UI/Panel Motion + Comic Language)
+- [~] Synthwave palette pass (base neon colors are in; full token pass pending)
+- [ ] Ben-Day dots + halftone overlays
+- [ ] Motion lines + comic onomatopoeia accents
+- [ ] Smooth panel/page transitions and micro-interactions
+- [ ] Mobile responsive polish across globe + panels
+- [ ] Door button full animation polish pass
+
+#### Phase 3 Sync Gate
+- [x] Merge shared visual tokens and run desktop/mobile design QA
+
+### Phase 4: Auth & Security — COMPLETE
+#### Track A (Identity + Access Control)
+- [x] Twitter OAuth 2.0 SSO via Supabase (login only)
+- [x] Manual allowlist model + approval checks
+- [x] Login/lock UI states with approval messaging
+- [x] Add lock icon (top-left) with hover detail states
+
+#### Track B (Field Protection + Privacy)
+- [x] API-level outsider vs insider field filtering
+- [x] Deterministic location fuzzing: `HMAC(precise_lat|precise_lng, FUZZ_SECRET)`
+- [x] Outsider rendering rules (`isLexerComing` -> `?`, precise location blackboxed)
+- [x] Disclaimer text for fuzzed outsider coordinates
+- [x] Optional glitch/censor visual treatment pass for hidden fields
+
+#### Phase 4 Sync Gate
+- [x] End-to-end outsider/insider validation (same event, different field visibility)
+
+### Phase 5: Advanced Aesthetic Experiments — COMPLETE
+#### Track A (Globe Experiments)
+- [x] WarGames wireframe option prototype
+- [x] Papery/illustrated globe option prototype
+
+#### Track B (Atmosphere Experiments)
+- [x] Borderlands-style crosshatch shadow pass experiments
+- [x] Additional motion/comic overlays that do not block readability
 
 ### Phase 6: Nice-to-haves (from "Rice" section)
-- [ ] TBD - noted in Notion for later
+#### Track A
+- [ ] Real FX conversion for event cost display (live rates)
+
+#### Track B
+- [ ] TBD (deferred)
 
 ## Open Questions
 1. ~~Tech stack confirmation~~ — decided: Next.js + react-globe.gl + Tailwind + Supabase
-2. How should events be managed? Admin panel, Notion sync, or direct DB edits?
+2. ~~How should events be managed?~~ — decided for Phase 2: direct DB edits
 3. ~~Globe library choice~~ — decided: react-globe.gl
 4. ~~Location privacy approach for recurrent events~~ — decided: HMAC seeded by precise coordinates
 5. Mobile-first or desktop-first?

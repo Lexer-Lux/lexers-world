@@ -6,11 +6,15 @@ interface FlipDateProps {
 }
 
 function toIsoDisplay(iso: string): string {
-  return iso.slice(0, 16); // "2026-03-15T20:00"
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toISOString().replace(".000", ""); // "2026-03-15T20:00:00Z"
 }
 
 function toHumanDisplay(iso: string): string {
   const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+
   return d.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
@@ -27,9 +31,9 @@ export default function FlipDate({ iso, className = "" }: FlipDateProps) {
       style={{ perspective: "300px" }}
     >
       <span
-        className="inline-block transition-transform duration-300 ease-in-out
+        className="relative inline-block transition-transform duration-300 ease-in-out
           group-hover/flip:[transform:rotateX(180deg)]"
-        style={{ transformStyle: "preserve-3d" }}
+        style={{ transformStyle: "preserve-3d", whiteSpace: "nowrap" }}
       >
         {/* Front face — ISO */}
         <span

@@ -15,6 +15,7 @@ export default function RecurringBadge({ size = 28 }: RecurringBadgeProps) {
   const cx = 50, cy = 50, r = 35;
   const letters = "RECURRING!".split("");
   const totalLetters = letters.length;
+  const loopDuration = 1.4;
 
   // Arc spans from startAngle to endAngle (degrees, 0 = right, clockwise)
   const startAngle = -120; // top-left
@@ -30,7 +31,13 @@ export default function RecurringBadge({ size = 28 }: RecurringBadgeProps) {
     const y = cy + r * Math.sin(angleRad);
     // Rotation: tangent to circle + 90deg so letters read outward
     const rotation = angleDeg + 90;
-    return { letter, x, y, rotation, delay: i * 0.08 };
+    return {
+      letter,
+      x,
+      y,
+      rotation,
+      delay: (i / totalLetters) * loopDuration,
+    };
   });
 
   // SVG arc path for the arrow line (same arc as letters)
@@ -52,9 +59,6 @@ export default function RecurringBadge({ size = 28 }: RecurringBadgeProps) {
   const ax2 = ex + tipLen * Math.cos(tipAngleRad - Math.PI - tipSpread);
   const ay2 = ey + tipLen * Math.sin(tipAngleRad - Math.PI - tipSpread);
 
-  // Approximate arc length for stroke-dasharray
-  const arcLength = (arcSpan / 360) * 2 * Math.PI * r;
-
   return (
     <div
       className="group/rec inline-block cursor-default"
@@ -69,12 +73,18 @@ export default function RecurringBadge({ size = 28 }: RecurringBadgeProps) {
         {/* Arrow arc line — fades out on hover */}
         <path
           d={arcPath}
+          pathLength={1}
           fill="none"
           stroke="#b026ff"
           strokeWidth="3"
           strokeLinecap="round"
-          className="transition-opacity duration-500 group-hover/rec:opacity-0"
-          style={{ strokeDasharray: arcLength, strokeDashoffset: 0 }}
+          className="group-hover/rec:[animation-play-state:running]"
+          style={{
+            strokeDasharray: 1,
+            strokeDashoffset: 0,
+            animation: `recArcErase ${loopDuration}s steps(${totalLetters}, end) infinite`,
+            animationPlayState: "paused",
+          }}
         />
         {/* Arrow tip — fades out on hover */}
         <path
@@ -84,7 +94,11 @@ export default function RecurringBadge({ size = 28 }: RecurringBadgeProps) {
           strokeWidth="3"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="transition-opacity duration-500 group-hover/rec:opacity-0"
+          className="group-hover/rec:[animation-play-state:running]"
+          style={{
+            animation: `recTipFade ${loopDuration}s linear infinite`,
+            animationPlayState: "paused",
+          }}
         />
 
         {/* Letters along the arc — fade in on hover */}
@@ -100,10 +114,11 @@ export default function RecurringBadge({ size = 28 }: RecurringBadgeProps) {
             fontFamily="monospace"
             fontWeight="900"
             fontSize="13"
-            className="opacity-0 transition-opacity group-hover/rec:opacity-100"
+            className="opacity-0 group-hover/rec:[animation-play-state:running]"
             style={{
-              transitionDelay: `${delay}s`,
-              transitionDuration: "0.15s",
+              animation: `recLetterReveal ${loopDuration}s linear infinite`,
+              animationDelay: `${delay}s`,
+              animationPlayState: "paused",
               filter: "drop-shadow(0 0 3px rgba(176, 38, 255, 0.6))",
             }}
           >

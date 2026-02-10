@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { LexerEvent, ViewerMode } from "@/lib/types";
+import { useEffect, useMemo, useState } from "react";
+import type { LexerEvent, ViewerMode } from "@/lib/types";
+import { REDACTED_ADDRESS_LABEL } from "@/lib/privacy-constants";
 import { formatCost } from "@/lib/data";
 import FlipDate from "./FlipDate";
+import LexerPresenceIcon from "./LexerPresenceIcon";
 import RecurringBadge from "./RecurringBadge";
 
 interface EventDetailViewProps {
@@ -13,58 +15,234 @@ interface EventDetailViewProps {
   onClose: () => void;
 }
 
+const FX_TO_USD: Record<string, number> = {
+  USD: 1,
+  CAD: 0.74,
+  GBP: 1.28,
+  EUR: 1.09,
+  JPY: 0.0067,
+  AUD: 0.66,
+  NZD: 0.62,
+  CHF: 1.13,
+  SEK: 0.095,
+  NOK: 0.094,
+  DKK: 0.146,
+};
+
+const COUNTRY_TO_CURRENCY: Record<string, string> = {
+  US: "USD",
+  CA: "CAD",
+  GB: "GBP",
+  AU: "AUD",
+  NZ: "NZD",
+  JP: "JPY",
+  CH: "CHF",
+  SE: "SEK",
+  NO: "NOK",
+  DK: "DKK",
+  FR: "EUR",
+  DE: "EUR",
+  ES: "EUR",
+  IT: "EUR",
+  IE: "EUR",
+  NL: "EUR",
+  BE: "EUR",
+  PT: "EUR",
+};
+
+function toGoogleCalendarDate(date: Date): string {
+  const year = date.getUTCFullYear().toString().padStart(4, "0");
+  const month = (date.getUTCMonth() + 1).toString().padStart(2, "0");
+  const day = date.getUTCDate().toString().padStart(2, "0");
+  const hour = date.getUTCHours().toString().padStart(2, "0");
+  const minute = date.getUTCMinutes().toString().padStart(2, "0");
+  const second = date.getUTCSeconds().toString().padStart(2, "0");
+  return `${year}${month}${day}T${hour}${minute}${second}Z`;
+}
+
+function buildGoogleCalendarUrl(event: LexerEvent): string {
+  const startDate = new Date(event.date);
+  const fallbackStart = Number.isFinite(startDate.valueOf()) ? startDate : new Date();
+  const endDate = new Date(fallbackStart.getTime() + 2 * 60 * 60 * 1000);
+
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: event.name,
+    dates: `${toGoogleCalendarDate(fallbackStart)}/${toGoogleCalendarDate(endDate)}`,
+    details: event.description,
+    location: event.address,
+  });
+
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
+function detectLocalCurrency(fallbackCurrency: string): string {
+  if (typeof window === "undefined") {
+    return fallbackCurrency;
+  }
+
+  const locale = Intl.DateTimeFormat().resolvedOptions().locale;
+  const region = locale.split("-")[1]?.toUpperCase();
+
+  if (!region) {
+    return fallbackCurrency;
+  }
+
+  return COUNTRY_TO_CURRENCY[region] ?? fallbackCurrency;
+}
+
+function convertCost(amount: number, fromCurrency: string, toCurrency: string): number | null {
+  const fromRate = FX_TO_USD[fromCurrency];
+  const toRate = FX_TO_USD[toCurrency];
+
+  if (!fromRate || !toRate) {
+    return null;
+  }
+
+  return (amount * fromRate) / toRate;
+}
+
+function formatCurrency(amount: number, currency: string): string {
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency,
+      maximumFractionDigits: amount >= 100 ? 0 : 2,
+    }).format(amount);
+  } catch {
+    return `${currency} ${amount.toFixed(2)}`;
+  }
+}
+
 export default function EventDetailView({
   event,
   viewerMode,
   onBack,
   onClose,
 }: EventDetailViewProps) {
+  const [isDoorPressed, setIsDoorPressed] = useState(false);
+  const [isDoorHovered, setIsDoorHovered] = useState(false);
+  const [showLocalCost, setShowLocalCost] = useState(false);
+  const [navigationHint, setNavigationHint] = useState<string | null>(null);
+
   const isOutsider = viewerMode === "outsider";
-  const lexerComingLabel =
-    event.isLexerComing === "?" ? "?" : event.isLexerComing ? "YES" : "NO";
-  const lexerComingColor =
-    event.isLexerComing === "?"
-      ? "var(--neon-yellow)"
-      : event.isLexerComing
-        ? "var(--neon-cyan)"
-        : "var(--neon-pink)";
+  const isLexerComingUnknown = event.isLexerComing === "?";
+  const lexerComingLabel = isLexerComingUnknown ? "?" : event.isLexerComing ? "YES" : "NO";
+  const lexerComingColor = isLexerComingUnknown
+    ? "var(--neon-yellow)"
+    : event.isLexerComing
+    ? "var(--neon-cyan)"
+    : "var(--neon-pink)";
+
+  const localCurrency = useMemo(() => detectLocalCurrency(event.currency), [event.currency]);
+  const convertedCost = useMemo(
+    () => convertCost(event.cost, event.currency, localCurrency),
+    [event.cost, event.currency, localCurrency]
+  );
+
+  const canConvertCost =
+    event.cost > 0 &&
+    localCurrency !== event.currency &&
+    convertedCost !== null &&
+    Number.isFinite(convertedCost);
+
+  const displayedCost = useMemo(() => {
+    if (event.cost === 0) {
+      return "FREE!";
+    }
+
+    if (showLocalCost && canConvertCost && convertedCost !== null) {
+      return `${formatCurrency(convertedCost, localCurrency)}${event.hasAdditionalTiers ? "+" : ""}`;
+    }
+
+    return formatCost(event.cost, event.currency, event.hasAdditionalTiers);
+  }, [
+    canConvertCost,
+    convertedCost,
+    event.cost,
+    event.currency,
+    event.hasAdditionalTiers,
+    localCurrency,
+    showLocalCost,
+  ]);
+
+  const costHintText =
+    event.cost === 0
+      ? "No ticket fee"
+      : canConvertCost
+      ? showLocalCost
+        ? "Tap for source"
+        : `Tap for ${localCurrency}`
+      : "Base tier price";
+
+  const mapUrl = useMemo(() => {
+    const params = new URLSearchParams({
+      api: "1",
+      destination: event.address,
+      travelmode: "driving",
+    });
+    return `https://www.google.com/maps/dir/?${params.toString()}`;
+  }, [event.address]);
+
+  const calendarUrl = useMemo(() => buildGoogleCalendarUrl(event), [event]);
+
+  useEffect(() => {
+    if (!navigationHint) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setNavigationHint(null);
+    }, 2200);
+
+    return () => window.clearTimeout(timeout);
+  }, [navigationHint]);
+
+  const handleNavigationClick = () => {
+    if (isOutsider) {
+      setNavigationHint("Navigation unlocks for approved insiders.");
+      return;
+    }
+
+    window.open(mapUrl, "_blank", "noopener,noreferrer");
+  };
 
   return (
-    <div className="fixed inset-0 z-30 flex items-center justify-center p-4">
-      {/* Backdrop */}
+    <div className="fixed inset-0 z-30 flex items-end justify-center p-2 sm:items-center sm:p-4">
       <div
         className="absolute inset-0 animate-[fadeIn_0.2s_ease-out]"
-        style={{ background: "var(--surface-overlay)", backdropFilter: "blur(8px)" }}
+        style={{
+          background:
+            "radial-gradient(circle at 18% 20%, rgba(0, 240, 255, 0.11), transparent 45%), radial-gradient(circle at 82% 84%, rgba(255, 45, 117, 0.14), transparent 44%), var(--surface-overlay)",
+          backdropFilter: "blur(8px)",
+        }}
         onClick={onClose}
       />
 
-      {/* Card */}
       <div
-        className="benday-overlay benday-cyan scanline relative w-full max-w-lg rounded-xl overflow-hidden
-          animate-[fadeScale_0.25s_ease-out]"
+        className="panel-shell benday-overlay benday-cyan scanline relative flex w-full max-w-xl flex-col overflow-hidden
+          max-h-[92vh] rounded-2xl animate-[fadeScale_0.25s_ease-out] sm:max-h-[90vh]"
         style={{
-          background: "var(--surface-card)",
+          background:
+            "linear-gradient(180deg, rgba(16, 12, 34, 0.95) 0%, rgba(8, 9, 23, 0.94) 100%)",
           border: "1px solid var(--border-cyan)",
           boxShadow:
             "0 0 40px rgba(176, 38, 255, 0.15), 0 0 80px rgba(255, 45, 117, 0.08)",
         }}
       >
-        {/* Recurring badge — top right of card */}
         {event.recurrent && (
-          <div className="absolute top-3 right-3 z-10">
+          <div className="absolute right-3 top-3 z-10">
             <RecurringBadge size={32} />
           </div>
         )}
 
-        {/* Top bar */}
         <div
-          className="relative z-[2] flex items-center justify-between px-4 sm:px-5 py-3"
+          className="relative z-[2] flex items-center justify-between px-4 py-3 sm:px-5"
           style={{ borderBottom: "1px solid rgba(255, 45, 117, 0.2)" }}
         >
           <button
             onClick={onBack}
-            className="flex items-center gap-1 text-sm transition-colors hover:opacity-80 cursor-pointer
-              min-h-[44px] sm:min-h-0"
+            className="flex min-h-[44px] cursor-pointer items-center gap-1 text-sm transition-colors hover:opacity-80 sm:min-h-0"
             style={{ color: "var(--neon-purple)", fontFamily: "monospace" }}
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -80,144 +258,205 @@ export default function EventDetailView({
           </button>
           <button
             onClick={onClose}
-            className="w-10 h-10 sm:w-7 sm:h-7 flex items-center justify-center rounded transition-colors
-              hover:bg-white/10 cursor-pointer"
+            aria-label="Close event detail"
+            className="flex h-10 w-10 cursor-pointer items-center justify-center rounded transition-colors hover:bg-white/10 sm:h-7 sm:w-7"
             style={{ color: "var(--neon-pink)" }}
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path
-                d="M3 3l10 10M13 3L3 13"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
+              <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
             </svg>
           </button>
+          <span className="comic-caption font-comic absolute -bottom-3 right-7 text-[11px]">BLAM!</span>
         </div>
 
-        {/* Content */}
-        <div className="relative z-[2] px-4 sm:px-6 py-4 sm:py-5">
-          {/* Event name */}
-          <h1
-            className="text-xl sm:text-2xl font-black tracking-wide uppercase mb-4 pr-12 font-mono text-neon-pink"
-            style={{
-              textShadow: "0 0 12px rgba(255, 45, 117, 0.6), 0 0 30px rgba(255, 45, 117, 0.3)",
-            }}
-          >
-            {event.name}
-          </h1>
+        <div className="relative z-[2] flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
+          <div className="mb-4 flex items-center gap-2 pr-12">
+            {viewerMode === "insider" && event.isLexerComing === true && <LexerPresenceIcon size={20} />}
+            <h1
+              className="font-mono text-xl font-black uppercase tracking-wide text-neon-pink sm:text-2xl"
+              style={{ textShadow: "0 0 12px rgba(255, 45, 117, 0.6), 0 0 30px rgba(255, 45, 117, 0.3)" }}
+            >
+              {event.name}
+            </h1>
+          </div>
 
-          {/* Metadata */}
-          <div className="flex flex-col gap-2 mb-5">
-            <div className="flex items-center gap-2 text-sm font-mono">
+          <div className="mb-5 flex flex-col gap-2">
+            <div className="flex items-center gap-2 font-mono text-sm">
               <span className="text-neon-purple">&#9737;</span>
-              <span style={{ color: "rgba(255, 255, 255, 0.7)" }}>
+              <span style={{ color: "var(--copy-secondary)" }}>
                 <FlipDate iso={event.date} />
               </span>
             </div>
 
-            <div className="flex items-center gap-2 text-sm font-mono">
+            <div className="flex items-center gap-2 font-mono text-sm">
               <span className="text-neon-purple">&#9672;</span>
-              <span style={{ color: "rgba(255, 255, 255, 0.7)" }}>{event.manualLocation}</span>
+              <span style={{ color: "var(--copy-secondary)" }}>{event.manualLocation}</span>
             </div>
 
-            <div className="flex items-center gap-2 text-sm font-mono">
+            <div className="flex items-center gap-2 font-mono text-sm">
               <span className="text-neon-purple">&#8962;</span>
-              <span style={{ color: "rgba(255, 255, 255, 0.7)" }}>
-                {isOutsider ? (
-                  <span className="glitch-redact">[ LOCATION BLACKBOXED ]</span>
+              <span style={{ color: "var(--copy-secondary)" }}>
+                {isOutsider ? <span className="glitch-redact">{REDACTED_ADDRESS_LABEL}</span> : event.address}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 font-mono text-sm">
+              <span className="text-neon-cyan">&#9733;</span>
+              <span style={{ color: "var(--copy-secondary)" }}>
+                Lexer coming:{" "}
+                {isLexerComingUnknown ? (
+                  <span className="glitch-redact">{lexerComingLabel}</span>
                 ) : (
-                  event.address
+                  <span style={{ color: lexerComingColor }}>{lexerComingLabel}</span>
                 )}
               </span>
             </div>
 
-            <div className="flex items-center gap-2 text-sm font-mono">
-              <span className="text-neon-cyan">&#9830;</span>
-              <span style={{ color: event.cost === 0 ? "var(--neon-cyan)" : "rgba(255, 255, 255, 0.7)" }}>
-                {formatCost(event.cost, event.currency, event.hasAdditionalTiers)}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2 text-sm font-mono">
-              <span className="text-neon-cyan">&#9733;</span>
-              <span style={{ color: "rgba(255, 255, 255, 0.7)" }}>
-                Lexer coming:{" "}
-                <span style={{ color: lexerComingColor }}>
-                  {lexerComingLabel}
-                </span>
-              </span>
-            </div>
-
             {event.locationPrecision === "fuzzed" && (
-              <p
-                className="text-xs uppercase tracking-wide font-mono"
-                style={{ color: "rgba(255, 225, 86, 0.85)" }}
-              >
+              <p className="font-mono text-xs uppercase tracking-wide" style={{ color: "rgba(255, 225, 86, 0.85)" }}>
                 outsider coordinates are deterministic privacy fuzzes
               </p>
             )}
           </div>
 
-          {/* Description */}
-          <p
-            className="text-sm leading-relaxed mb-6"
-            style={{ color: "rgba(255, 255, 255, 0.8)" }}
-          >
+          <p className="mb-6 text-sm leading-relaxed" style={{ color: "var(--copy-primary)" }}>
             {event.description}
           </p>
+
+          {navigationHint && (
+            <p className="font-mono text-[11px] uppercase tracking-wide" style={{ color: "var(--neon-yellow)" }}>
+              {navigationHint}
+            </p>
+          )}
         </div>
 
-        {/* Door button — bottom right */}
-        <div className="relative z-[2] flex justify-end px-4 sm:px-6 pb-5">
-          <DoorButton inviteUrl={event.inviteUrl} />
+        <div
+          className="relative z-[2] mobile-safe-bottom flex flex-wrap items-center justify-end gap-2 border-t px-4 pb-4 pt-3 sm:px-6 sm:pb-5"
+          style={{ borderTopColor: "rgba(0, 240, 255, 0.18)" }}
+        >
+          <button
+            type="button"
+            onClick={handleNavigationClick}
+            aria-disabled={isOutsider}
+            className="inline-flex cursor-pointer items-center gap-1 rounded-md border px-2 py-1 font-mono text-[10px] uppercase tracking-[0.16em]"
+            style={{
+              color: isOutsider ? "rgba(179, 184, 214, 0.56)" : "var(--neon-cyan)",
+              borderColor: isOutsider ? "rgba(148, 158, 197, 0.24)" : "var(--border-cyan)",
+              background: isOutsider ? "rgba(92, 104, 141, 0.12)" : "rgba(0, 240, 255, 0.08)",
+            }}
+          >
+            <span aria-hidden="true">&#10148;</span>
+            Navigate
+          </button>
+
+          <a
+            href={calendarUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex cursor-pointer items-center gap-1 rounded-md border px-2 py-1 font-mono text-[10px] uppercase tracking-[0.16em]"
+            style={{
+              color: "var(--neon-purple)",
+              borderColor: "rgba(176, 38, 255, 0.38)",
+              background: "rgba(176, 38, 255, 0.09)",
+            }}
+          >
+            <span aria-hidden="true">&#128197;</span>
+            Calendar
+          </a>
+
+          <DoorButton
+            inviteUrl={event.inviteUrl}
+            isPressed={isDoorPressed}
+            isHovered={isDoorHovered}
+            onHoverChange={setIsDoorHovered}
+            onPressChange={setIsDoorPressed}
+          />
+
+          <button
+            type="button"
+            onClick={() => {
+              if (canConvertCost) {
+                setShowLocalCost((prev) => !prev);
+              }
+            }}
+            className="grid min-w-[94px] cursor-pointer rounded-md border px-2 py-1 text-left"
+            style={{
+              borderColor: "rgba(255, 45, 117, 0.32)",
+              background: "rgba(255, 45, 117, 0.09)",
+            }}
+          >
+            <span className="font-mono text-[11px] font-bold tracking-wide" style={{ color: "var(--neon-pink)" }}>
+              {displayedCost}
+            </span>
+            <span className="font-mono text-[9px] uppercase tracking-[0.14em]" style={{ color: "var(--copy-muted)" }}>
+              {costHintText}
+            </span>
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-/** Animated door button — enhanced with light spill and glow */
-function DoorButton({ inviteUrl }: { inviteUrl: string }) {
-  const [isPressed, setIsPressed] = useState(false);
+function DoorButton({
+  inviteUrl,
+  isPressed,
+  isHovered,
+  onHoverChange,
+  onPressChange,
+}: {
+  inviteUrl: string;
+  isPressed: boolean;
+  isHovered: boolean;
+  onHoverChange: (hovered: boolean) => void;
+  onPressChange: (pressed: boolean) => void;
+}) {
+  const doorAngle = isPressed ? -78 : isHovered ? -16 : 0;
 
   return (
     <a
       href={inviteUrl}
       target="_blank"
       rel="noopener noreferrer"
-      className="group/door relative block cursor-pointer burst-lines"
+      aria-label="Open invite link"
+      className="group/door burst-lines relative block cursor-pointer"
       style={{ perspective: "800px" }}
-      onMouseDown={() => setIsPressed(true)}
-      onMouseUp={() => setIsPressed(false)}
-      onMouseLeave={() => setIsPressed(false)}
-      onTouchStart={() => setIsPressed(true)}
-      onTouchEnd={() => setIsPressed(false)}
+      onMouseEnter={() => onHoverChange(true)}
+      onMouseLeave={() => {
+        onHoverChange(false);
+        onPressChange(false);
+      }}
+      onPointerDown={() => onPressChange(true)}
+      onPointerUp={() => onPressChange(false)}
+      onPointerCancel={() => onPressChange(false)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          onPressChange(true);
+        }
+      }}
+      onKeyUp={() => onPressChange(false)}
     >
       <div
-        className="flex items-center gap-3 px-4 py-2.5 sm:py-2 rounded-lg transition-all duration-200
-          hover:shadow-[0_0_20px_rgba(0,240,255,0.15)]"
+        className="flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-200 hover:shadow-[0_0_20px_rgba(0,240,255,0.15)]"
         style={{
           border: "1px solid rgba(0, 240, 255, 0.3)",
-          background: "rgba(0, 240, 255, 0.05)",
+          background: "linear-gradient(130deg, rgba(0, 240, 255, 0.08), rgba(176, 38, 255, 0.08))",
         }}
       >
-        {/* Door icon container */}
-        <div
-          className="relative w-8 h-10"
-          style={{ perspective: "800px" }}
-        >
-          {/* Light behind door — visible when open */}
+        <div className="relative h-10 w-8" style={{ perspective: "800px" }}>
           <div
             className="absolute inset-0 rounded-sm transition-opacity duration-300"
             style={{
-              opacity: isPressed ? 1 : 0,
-              background: "radial-gradient(ellipse at center, rgba(0, 240, 255, 0.3), rgba(255, 225, 86, 0.15), transparent)",
-              boxShadow: isPressed ? "0 0 20px rgba(0, 240, 255, 0.3), 0 0 40px rgba(255, 225, 86, 0.1)" : "none",
+              opacity: isPressed || isHovered ? 1 : 0,
+              background:
+                "radial-gradient(ellipse at center, rgba(0, 240, 255, 0.3), rgba(255, 225, 86, 0.15), transparent)",
+              boxShadow:
+                isPressed || isHovered
+                  ? "0 0 20px rgba(0, 240, 255, 0.3), 0 0 40px rgba(255, 225, 86, 0.1)"
+                  : "none",
             }}
           />
 
-          {/* Door frame */}
           <div
             className="absolute inset-0 rounded-sm"
             style={{
@@ -225,25 +464,22 @@ function DoorButton({ inviteUrl }: { inviteUrl: string }) {
               background: "rgba(0, 240, 255, 0.05)",
             }}
           />
-          {/* Door panel — swings open on press with spring easing */}
+
           <div
             className="absolute inset-0 rounded-sm"
             style={{
               transformOrigin: "left center",
               background: "rgba(0, 240, 255, 0.2)",
               border: "2px solid var(--neon-cyan)",
-              boxShadow: isPressed
-                ? "-5px 0 15px rgba(0, 240, 255, 0.4)"
-                : "0 0 8px rgba(0, 240, 255, 0.3)",
-              transform: isPressed ? "rotateY(-75deg)" : "rotateY(0deg)",
+              boxShadow: isPressed ? "-5px 0 15px rgba(0, 240, 255, 0.4)" : "0 0 8px rgba(0, 240, 255, 0.3)",
+              transform: `rotateY(${doorAngle}deg)`,
               transition: isPressed
                 ? "transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease"
                 : "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease",
             }}
           >
-            {/* Door knob */}
             <div
-              className="absolute right-1 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full"
+              className="absolute right-1 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full"
               style={{
                 background: "var(--neon-cyan)",
                 boxShadow: "0 0 4px var(--neon-cyan)",
@@ -252,28 +488,23 @@ function DoorButton({ inviteUrl }: { inviteUrl: string }) {
           </div>
         </div>
 
-        {/* Label */}
         <span
-          className="text-sm font-bold uppercase tracking-wider font-mono text-neon-cyan"
-          style={{
-            textShadow: "var(--glow-cyan-sm)",
-          }}
+          className="font-mono text-sm font-bold uppercase tracking-wider text-neon-cyan"
+          style={{ textShadow: "var(--glow-cyan-sm)" }}
         >
           ENTER
         </span>
 
-        {/* Comic "KNOCK KNOCK" hint on hover */}
         <span
-          className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-black uppercase tracking-widest font-mono
-            opacity-0 group-hover/door:opacity-100 transition-all duration-300
-            group-hover/door:-translate-y-1"
+          className="font-mono absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-black uppercase tracking-widest opacity-0 transition-all duration-300
+            group-hover/door:-translate-y-1 group-hover/door:opacity-100"
           style={{
             color: "var(--neon-yellow)",
             textShadow: "0 0 6px rgba(255, 225, 86, 0.5)",
             transform: "translateX(-50%)",
           }}
         >
-          KNOCK KNOCK
+          CLACK! CLACK!
         </span>
       </div>
     </a>

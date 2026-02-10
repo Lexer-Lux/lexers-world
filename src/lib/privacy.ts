@@ -1,6 +1,11 @@
 import { createHmac } from "node:crypto";
-import { createClient } from "@supabase/supabase-js";
-import { LexerEvent, ViewerMode } from "@/lib/types";
+import { resolveViewerAuthStatus } from "@/lib/auth";
+import type { LexerEvent, ViewerAuthStatus, ViewerMode } from "@/lib/types";
+import {
+  INSIDER_PRIVACY_DISCLAIMER,
+  OUTSIDER_PRIVACY_DISCLAIMER,
+  REDACTED_ADDRESS_LABEL,
+} from "@/lib/privacy-constants";
 
 const FALLBACK_FUZZ_SECRET = "dev-fuzz-secret-change-me";
 
@@ -81,44 +86,17 @@ function shouldAllowInsiderByPreviewToken(request: Request): boolean {
   return suppliedToken === expectedToken;
 }
 
-function getServerSupabaseClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+export async function resolveViewerMode(
+  request: Request,
+  authStatus?: ViewerAuthStatus
+): Promise<ViewerMode> {
+  const resolvedAuth = authStatus ?? (await resolveViewerAuthStatus(request));
 
-  if (!url || !anonKey) return null;
-
-  return createClient(url, anonKey);
-}
-
-export async function resolveViewerMode(request: Request): Promise<ViewerMode> {
-  // 1. Check for Bearer token (real auth)
-  const authHeader = request.headers.get("authorization");
-  if (authHeader?.startsWith("Bearer ")) {
-    const token = authHeader.slice(7);
-    const supabase = getServerSupabaseClient();
-
-    if (supabase) {
-      const { data: { user }, error } = await supabase.auth.getUser(token);
-
-      if (!error && user) {
-        const twitterUsername =
-          (user.user_metadata?.user_name as string | undefined) ??
-          (user.user_metadata?.preferred_username as string | undefined);
-
-        if (twitterUsername) {
-          const { data: allowlistRow } = await supabase
-            .from("allowlist")
-            .select("id")
-            .eq("twitter_username", twitterUsername.toLowerCase())
-            .maybeSingle();
-
-          return allowlistRow ? "insider" : "outsider";
-        }
-      }
-    }
+  if (resolvedAuth.isAuthenticated && resolvedAuth.isApproved) {
+    return "insider";
   }
 
-  // 2. Fallback: legacy preview token check (for dev)
+  // Fallback: legacy preview token check (for dev)
   const url = new URL(request.url);
   const queryViewer = url.searchParams.get("viewer")?.toLowerCase();
   const headerViewer = request.headers.get("x-lexer-viewer")?.toLowerCase();
@@ -131,30 +109,60 @@ export async function resolveViewerMode(request: Request): Promise<ViewerMode> {
   return "outsider";
 }
 
-export function applyViewerPrivacy(event: LexerEvent, viewerMode: ViewerMode): LexerEvent {
-  if (viewerMode === "insider") {
-    return {
-      ...event,
-      locationPrecision: "precise",
-    };
-  }
+function projectInsiderEvent(event: LexerEvent): LexerEvent {
+  return {
+    id: event.id,
+    name: event.name,
+    manualLocation: event.manualLocation,
+    address: event.address,
+    lat: event.lat,
+    lng: event.lng,
+    description: event.description,
+    isLexerComing: event.isLexerComing,
+    recurrent: event.recurrent,
+    inviteUrl: event.inviteUrl,
+    date: event.date,
+    cost: event.cost,
+    currency: event.currency,
+    hasAdditionalTiers: event.hasAdditionalTiers,
+    locationPrecision: "precise",
+  };
+}
 
+function projectOutsiderEvent(event: LexerEvent): LexerEvent {
   const fuzzed = fuzzCoordinates(event.lat, event.lng);
 
   return {
-    ...event,
+    id: event.id,
+    name: event.name,
+    manualLocation: event.manualLocation,
+    address: REDACTED_ADDRESS_LABEL,
     lat: fuzzed.lat,
     lng: fuzzed.lng,
-    address: "[ LOCATION BLACKBOXED ]",
+    description: event.description,
     isLexerComing: "?",
+    recurrent: event.recurrent,
+    inviteUrl: event.inviteUrl,
+    date: event.date,
+    cost: event.cost,
+    currency: event.currency,
+    hasAdditionalTiers: event.hasAdditionalTiers,
     locationPrecision: "fuzzed",
   };
 }
 
-export function getPrivacyDisclaimer(viewerMode: ViewerMode): string {
+export function applyViewerPrivacy(event: LexerEvent, viewerMode: ViewerMode): LexerEvent {
   if (viewerMode === "insider") {
-    return "Insider mode: precise coordinates and Lexer attendance are visible.";
+    return projectInsiderEvent(event);
   }
 
-  return "Outsider mode: map coordinates are deterministic privacy fuzzes and venue details are blackboxed.";
+  return projectOutsiderEvent(event);
+}
+
+export function getPrivacyDisclaimer(viewerMode: ViewerMode): string {
+  if (viewerMode === "insider") {
+    return INSIDER_PRIVACY_DISCLAIMER;
+  }
+
+  return OUTSIDER_PRIVACY_DISCLAIMER;
 }

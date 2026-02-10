@@ -7,6 +7,12 @@ export interface KeyLocation {
 
 export type ViewerMode = "outsider" | "insider";
 
+export interface ViewerAuthStatus {
+  isAuthenticated: boolean;
+  isApproved: boolean;
+  twitterUsername: string | null;
+}
+
 export interface LexerEvent {
   id: string;
   name: string;
@@ -23,4 +29,15 @@ export interface LexerEvent {
   currency: string; // ISO 4217 currency code, defaults to "USD"
   hasAdditionalTiers: boolean; // true = show "+" suffix on price
   locationPrecision?: "precise" | "fuzzed";
+}
+
+export type EventsSource = "supabase" | "mock";
+
+export interface EventsApiResponse {
+  events: LexerEvent[];
+  source: EventsSource;
+  viewerMode: ViewerMode;
+  privacyDisclaimer: string;
+  authStatus: ViewerAuthStatus;
+  approvalMessage: string;
 }

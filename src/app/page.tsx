@@ -1,10 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { CSSProperties } from "react";
 import dynamic from "next/dynamic";
+import {
+  DEFAULT_AESTHETIC_RUNTIME_SETTINGS,
+  type AestheticRuntimeSettings,
+} from "@/lib/aesthetic-settings";
 import { getEventsForLocation, MOCK_EVENTS } from "@/lib/data";
-import { LexerEvent, ViewerMode } from "@/lib/types";
+import { LEXER_TWITTER_URL } from "@/lib/app-config";
+import { DEFAULT_GLOBE_RUNTIME_SETTINGS } from "@/lib/globe-settings";
+import { OUTSIDER_PRIVACY_DISCLAIMER, REDACTED_ADDRESS_LABEL } from "@/lib/privacy-constants";
+import type { EventsApiResponse, LexerEvent, ViewerMode } from "@/lib/types";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
+import CurvedTitle from "@/components/CurvedTitle";
+import DevDrawer from "@/components/DevDrawer";
 import EventListPanel from "@/components/EventListPanel";
 import EventDetailView from "@/components/EventDetailView";
 import LockIcon, { AuthState } from "@/components/LockIcon";
@@ -13,17 +23,36 @@ import type { Session } from "@supabase/supabase-js";
 
 const Globe = dynamic(() => import("@/components/Globe"), { ssr: false });
 
+function hasAuthStatus(value: unknown): value is EventsApiResponse["authStatus"] {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Partial<EventsApiResponse["authStatus"]>;
+  return (
+    typeof candidate.isAuthenticated === "boolean" &&
+    typeof candidate.isApproved === "boolean" &&
+    (typeof candidate.twitterUsername === "string" || candidate.twitterUsername === null)
+  );
+}
+
 export default function Home() {
   const [events, setEvents] = useState<LexerEvent[]>(MOCK_EVENTS);
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<LexerEvent | null>(null);
   const [viewerMode, setViewerMode] = useState<ViewerMode>("outsider");
-  const [privacyDisclaimer, setPrivacyDisclaimer] = useState<string>(
-    "Outsider mode: map coordinates are deterministic privacy fuzzes and venue details are blackboxed."
-  );
+  const [privacyDisclaimer, setPrivacyDisclaimer] = useState<string>(OUTSIDER_PRIVACY_DISCLAIMER);
 
   const [session, setSession] = useState<Session | null>(null);
   const [authState, setAuthState] = useState<AuthState>("unauthenticated");
+  const [globeAltitude, setGlobeAltitude] = useState(2.5);
+  const [runtimeSettings, setRuntimeSettings] = useState(DEFAULT_GLOBE_RUNTIME_SETTINGS);
+  const [aestheticSettings, setAestheticSettings] =
+    useState<AestheticRuntimeSettings>(DEFAULT_AESTHETIC_RUNTIME_SETTINGS);
+  const [authMessage, setAuthMessage] = useState<string>(
+    "Outsider access only. Sign in with X to request insider approval."
+  );
+  const [approvedUsername, setApprovedUsername] = useState<string | undefined>(undefined);
 
   // Fetch events, optionally with auth token
   const fetchEvents = useCallback(async (accessToken?: string) => {
@@ -42,11 +71,7 @@ export default function Home() {
         throw new Error(`Events API returned ${response.status}`);
       }
 
-      const payload = (await response.json()) as {
-        events?: LexerEvent[];
-        viewerMode?: ViewerMode;
-        privacyDisclaimer?: string;
-      };
+      const payload = (await response.json()) as Partial<EventsApiResponse>;
       if (!Array.isArray(payload.events)) {
         throw new Error("Events API returned invalid data");
       }
@@ -62,16 +87,40 @@ export default function Home() {
       if (typeof payload.privacyDisclaimer === "string" && payload.privacyDisclaimer.trim().length > 0) {
         setPrivacyDisclaimer(payload.privacyDisclaimer);
       }
+
+      if (hasAuthStatus(payload.authStatus)) {
+        setAuthState(
+          payload.authStatus.isAuthenticated
+            ? payload.authStatus.isApproved
+              ? "insider"
+              : "pending"
+            : "unauthenticated"
+        );
+        setApprovedUsername(payload.authStatus.twitterUsername ?? undefined);
+      } else if (accessToken) {
+        setAuthState(payload.viewerMode === "insider" ? "insider" : "pending");
+      }
+
+      if (typeof payload.approvalMessage === "string" && payload.approvalMessage.trim().length > 0) {
+        setAuthMessage(payload.approvalMessage);
+      }
     } catch {
       setEvents(
         MOCK_EVENTS.map((event) => ({
           ...event,
           isLexerComing: "?",
-          address: "[ LOCATION BLACKBOXED ]",
+          address: REDACTED_ADDRESS_LABEL,
           locationPrecision: "fuzzed" as const,
         }))
       );
       setViewerMode("outsider");
+      setPrivacyDisclaimer(OUTSIDER_PRIVACY_DISCLAIMER);
+      setAuthState(accessToken ? "pending" : "unauthenticated");
+      setAuthMessage(
+        accessToken
+          ? "Signed in, but approval status could not be verified."
+          : "Outsider access only. Sign in with X to request insider approval."
+      );
     }
   }, []);
 
@@ -118,15 +167,87 @@ export default function Home() {
     await supabase.auth.signOut();
     setSession(null);
     setAuthState("unauthenticated");
+    setApprovedUsername(undefined);
+    setAuthMessage("Outsider access only. Sign in with X to request insider approval.");
     fetchEvents();
   };
 
-  const twitterUsername = session?.user?.user_metadata?.user_name as string | undefined;
+  const twitterUsername =
+    approvedUsername ??
+    ((session?.user?.user_metadata?.user_name as string | undefined) ??
+      (session?.user?.user_metadata?.preferred_username as string | undefined));
 
   const selectedLocationEvents = useMemo(() => {
     if (!selectedLocation) return [];
     return getEventsForLocation(selectedLocation, events);
   }, [events, selectedLocation]);
+
+  const isWarGamesMode = runtimeSettings.globeExperimentMode === "wargames";
+  const isPaperMode = runtimeSettings.globeExperimentMode === "paper";
+
+  const showCurvedTitle =
+    runtimeSettings.showCurvedTitle && globeAltitude >= runtimeSettings.zoomThreshold;
+
+  const runtimeCssVars = useMemo(
+    () =>
+      ({
+        "--motion-lines-opacity": aestheticSettings.showMotionLines
+          ? aestheticSettings.motionLinesOpacity.toFixed(3)
+          : "0",
+        "--motion-lines-duration": `${aestheticSettings.motionLinesSpeedSeconds}s`,
+        "--edge-streaks-opacity": aestheticSettings.showEdgeStreaks
+          ? aestheticSettings.edgeStreaksOpacity.toFixed(3)
+          : "0",
+        "--edge-streaks-duration": `${aestheticSettings.edgeStreaksSpeedSeconds}s`,
+        "--burst-overlay-opacity": aestheticSettings.showBurstOverlay
+          ? aestheticSettings.burstOverlayOpacity.toFixed(3)
+          : "0",
+        "--burst-overlay-duration": `${aestheticSettings.burstOverlayPulseSeconds}s`,
+        "--benday-opacity": aestheticSettings.bendayOpacity.toFixed(3),
+        "--comic-caption-opacity": aestheticSettings.showComicCaptions ? "1" : "0",
+        "--comic-caption-rotation": `${aestheticSettings.comicCaptionRotationDeg}deg`,
+        "--panel-blur": `${aestheticSettings.panelBlurPx}px`,
+        "--glitch-animation-name": aestheticSettings.glitchEnabled ? "censorGlitch" : "none",
+        "--glitch-duration": `${aestheticSettings.glitchSpeedSeconds}s`,
+      }) as CSSProperties,
+    [aestheticSettings]
+  );
+
+  const nebulaBackground = useMemo(() => {
+    if (isWarGamesMode) {
+      return "radial-gradient(circle at 24% 22%, rgba(83, 255, 178, 0.28) 0%, rgba(83, 255, 178, 0) 34%), radial-gradient(circle at 76% 74%, rgba(27, 208, 133, 0.22) 0%, rgba(27, 208, 133, 0) 42%), radial-gradient(circle at 50% 12%, rgba(152, 255, 207, 0.18) 0%, rgba(152, 255, 207, 0) 45%)";
+    }
+
+    if (isPaperMode) {
+      return "radial-gradient(circle at 24% 22%, rgba(215, 170, 123, 0.24) 0%, rgba(215, 170, 123, 0) 34%), radial-gradient(circle at 76% 74%, rgba(173, 111, 79, 0.2) 0%, rgba(173, 111, 79, 0) 42%), radial-gradient(circle at 50% 12%, rgba(145, 119, 81, 0.16) 0%, rgba(145, 119, 81, 0) 45%)";
+    }
+
+    return "radial-gradient(circle at 24% 22%, rgba(0, 240, 255, 0.36) 0%, rgba(0, 240, 255, 0) 34%), radial-gradient(circle at 76% 74%, rgba(255, 45, 117, 0.3) 0%, rgba(255, 45, 117, 0) 42%), radial-gradient(circle at 50% 12%, rgba(176, 38, 255, 0.25) 0%, rgba(176, 38, 255, 0) 45%)";
+  }, [isPaperMode, isWarGamesMode]);
+
+  const gridLineColor = isWarGamesMode
+    ? "95, 255, 187"
+    : isPaperMode
+      ? "143, 113, 76"
+      : "88, 158, 255";
+
+  const gridOverlayBackground = useMemo(
+    () =>
+      `linear-gradient(180deg, rgba(0,0,0,0.08), rgba(0,0,0,0.45)), repeating-linear-gradient(${aestheticSettings.gridAngleDeg}deg, rgba(${gridLineColor}, 0.08) 0px, rgba(${gridLineColor}, 0.08) 1px, transparent 1px, transparent ${aestheticSettings.gridSpacingPx}px)`,
+    [aestheticSettings.gridAngleDeg, aestheticSettings.gridSpacingPx, gridLineColor]
+  );
+
+  const horizonBackground = useMemo(() => {
+    if (isWarGamesMode) {
+      return "linear-gradient(180deg, rgba(3, 10, 8, 0) 0%, rgba(4, 15, 11, 0.72) 46%, rgba(2, 9, 7, 0.96) 100%)";
+    }
+
+    if (isPaperMode) {
+      return "linear-gradient(180deg, rgba(24, 18, 12, 0) 0%, rgba(28, 20, 12, 0.7) 46%, rgba(20, 14, 9, 0.94) 100%)";
+    }
+
+    return "linear-gradient(180deg, rgba(6, 9, 23, 0) 0%, rgba(5, 8, 19, 0.72) 46%, rgba(3, 4, 12, 0.96) 100%)";
+  }, [isPaperMode, isWarGamesMode]);
 
   const handleLocationClick = (locationName: string) => {
     setSelectedLocation(locationName);
@@ -150,52 +271,75 @@ export default function Home() {
   };
 
   return (
-    <main className="relative w-screen h-screen overflow-hidden bg-background">
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background:
-            "radial-gradient(circle at 18% 14%, rgba(0, 216, 255, 0.2) 0%, rgba(0, 216, 255, 0) 34%), radial-gradient(circle at 82% 86%, rgba(255, 45, 117, 0.2) 0%, rgba(255, 45, 117, 0) 36%), linear-gradient(180deg, #040712 0%, #080b1f 52%, #090412 100%)",
-        }}
-      />
-      <div
-        className="absolute inset-0 pointer-events-none opacity-[0.35]"
-        style={{
-          backgroundImage:
-            "repeating-linear-gradient(115deg, rgba(105, 175, 255, 0.06) 0px, rgba(105, 175, 255, 0.06) 1px, transparent 1px, transparent 9px)",
-          mixBlendMode: "screen",
-        }}
-      />
+    <main className="motion-lines relative h-screen w-screen overflow-hidden bg-background" style={runtimeCssVars}>
+      {aestheticSettings.showNebula && (
+        <div
+          className="absolute inset-[-18%] pointer-events-none"
+          style={{
+            background: nebulaBackground,
+            opacity: aestheticSettings.nebulaOpacity,
+            filter: `blur(${aestheticSettings.nebulaBlurPx}px)`,
+            animation: `driftNebula ${aestheticSettings.nebulaDriftSeconds}s ease-in-out infinite`,
+          }}
+        />
+      )}
+      {aestheticSettings.showGridOverlay && (
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            opacity: aestheticSettings.gridOpacity,
+            backgroundImage: gridOverlayBackground,
+            mixBlendMode: "screen",
+            animation: `gridParallax ${aestheticSettings.gridDriftSeconds}s linear infinite`,
+          }}
+        />
+      )}
+      {aestheticSettings.showHorizonFade && (
+        <div
+          className="absolute inset-x-0 bottom-0 h-52 pointer-events-none"
+          style={{
+            opacity: aestheticSettings.horizonOpacity,
+            background: horizonBackground,
+          }}
+        />
+      )}
 
-      <Globe events={events} onLocationClick={handleLocationClick} onEventClick={handleEventClick} />
+      {aestheticSettings.showEdgeStreaks && (
+        <div className="edge-streaks-overlay absolute inset-0 pointer-events-none" />
+      )}
+
+      {aestheticSettings.showBurstOverlay && (
+        <div className="comic-burst-overlay absolute inset-0 pointer-events-none" />
+      )}
+
+      <Globe
+        events={events}
+        onLocationClick={handleLocationClick}
+        onEventClick={handleEventClick}
+        runtimeSettings={runtimeSettings}
+        onAltitudeChange={setGlobeAltitude}
+      />
 
       {/* Lock icon — auth UI */}
       <LockIcon
         authState={authState}
         username={twitterUsername}
+        detailMessage={authMessage}
         onSignIn={handleSignIn}
         onSignOut={handleSignOut}
       />
 
-      {/* Title overlay */}
-      <div className="absolute top-4 sm:top-6 left-1/2 -translate-x-1/2 z-10 pointer-events-none select-none">
+      <CurvedTitle visible={showCurvedTitle} />
+
+      <div
+        className={`pointer-events-none absolute left-1/2 top-4 z-10 -translate-x-1/2 select-none transition-opacity duration-300 sm:hidden ${showCurvedTitle ? "opacity-100" : "opacity-0"}`}
+      >
         <h1
-          className="text-xl sm:text-3xl font-bold tracking-widest uppercase font-mono text-neon-pink"
-          style={{
-            textShadow: "var(--glow-pink)",
-          }}
+          className="font-mono text-lg font-black uppercase tracking-[0.18em] text-neon-pink"
+          style={{ textShadow: "var(--glow-pink)" }}
         >
-          {"LEXER'S WORLD"}
+          LEXER&apos;S WORLD
         </h1>
-        {/* Comic-style speed lines behind title */}
-        <div
-          className="absolute inset-0 -inset-x-8 opacity-[0.04]"
-          style={{
-            background: "repeating-linear-gradient(90deg, transparent, transparent 6px, var(--neon-pink) 6px, var(--neon-pink) 7px)",
-            maskImage: "radial-gradient(ellipse at center, black 30%, transparent 70%)",
-            WebkitMaskImage: "radial-gradient(ellipse at center, black 30%, transparent 70%)",
-          }}
-        />
       </div>
 
       {/* Event list panel */}
@@ -205,6 +349,7 @@ export default function Home() {
           events={selectedLocationEvents}
           onEventClick={handleEventClick}
           onClose={handleClose}
+          twitterUrl={LEXER_TWITTER_URL}
         />
       )}
 
@@ -219,9 +364,9 @@ export default function Home() {
       )}
 
       {viewerMode === "outsider" && (
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-4">
+        <div className="mobile-safe-bottom absolute bottom-1 left-1/2 z-10 -translate-x-1/2 px-4 pointer-events-none">
           <p
-            className="text-[11px] sm:text-xs font-mono uppercase tracking-wide text-center"
+            className="font-mono text-center text-[10px] uppercase tracking-wide sm:text-xs"
             style={{
               color: "rgba(255, 225, 86, 0.9)",
               textShadow: "0 0 8px rgba(255, 225, 86, 0.25)",
@@ -231,6 +376,28 @@ export default function Home() {
           </p>
         </div>
       )}
+
+      <a
+        href={LEXER_TWITTER_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mobile-safe-bottom fixed bottom-2 right-3 z-40 rounded-md border px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.22em]"
+        style={{
+          color: "var(--neon-cyan)",
+          borderColor: "var(--border-cyan)",
+          background: "rgba(0, 240, 255, 0.1)",
+          boxShadow: "0 0 12px rgba(0, 240, 255, 0.2)",
+        }}
+      >
+        LEXER
+      </a>
+
+      <DevDrawer
+        globeSettings={runtimeSettings}
+        onGlobeChange={setRuntimeSettings}
+        aestheticSettings={aestheticSettings}
+        onAestheticChange={setAestheticSettings}
+      />
     </main>
   );
 }
