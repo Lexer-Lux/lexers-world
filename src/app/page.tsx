@@ -40,6 +40,10 @@ function hasAuthStatus(value: unknown): value is EventsApiResponse["authStatus"]
   );
 }
 
+function stripModePrefix(message: string): string {
+  return message.replace(/^\s*(outsider|insider|pending)\s+mode:\s*/i, "").trim();
+}
+
 export default function Home() {
   const authConfigured = isSupabaseBrowserConfigured();
 
@@ -223,10 +227,10 @@ export default function Home() {
 
   const lockDetailMessage =
     authState === "insider"
-      ? INSIDER_PRIVACY_DISCLAIMER
+      ? stripModePrefix(INSIDER_PRIVACY_DISCLAIMER)
       : authState === "unauthenticated"
-      ? privacyDisclaimer
-      : authMessage;
+        ? stripModePrefix(privacyDisclaimer)
+        : stripModePrefix(authMessage);
 
   const runtimeCssVars = useMemo(
     () =>

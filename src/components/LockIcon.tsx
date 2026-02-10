@@ -153,7 +153,7 @@ export default function LockIcon({
                   background: "rgba(0, 240, 255, 0.08)",
                 }}
               >
-                SIGN IN
+                SIGN IN WITH TWITTER
               </button>
             ) : (
               <button

@@ -31,7 +31,7 @@ export default function GlobeTitlePlane({ altitude, enabled }: GlobeTitlePlanePr
     const zoom = clamp((2.75 - altitude) / 1.9, 0, 1);
     const globeRadius = minSide * (0.28 + zoom * 0.42);
 
-    const titleTop = height * 0.5 - globeRadius - 42;
+    const titleTop = height * 0.5 - globeRadius + 8;
 
     return {
       top: titleTop,

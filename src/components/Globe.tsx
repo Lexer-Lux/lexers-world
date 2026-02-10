@@ -2,7 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactGlobe, { GlobeMethods } from "react-globe.gl";
-import { Color, MeshPhongMaterial, SRGBColorSpace, TextureLoader, Vector3 } from "three";
+import {
+  AmbientLight,
+  Color,
+  DirectionalLight,
+  MeshPhongMaterial,
+  SRGBColorSpace,
+  TextureLoader,
+  Vector3,
+} from "three";
 import { KEY_LOCATIONS } from "@/lib/data";
 import {
   DEFAULT_GLOBE_RUNTIME_SETTINGS,
@@ -473,6 +481,7 @@ export default function Globe({
   const settings = runtimeSettings ?? DEFAULT_GLOBE_RUNTIME_SETTINGS;
   const warEnabled = settings.enableWarGamesEffect;
   const paperEnabled = settings.enablePaperEffect;
+  const useStylizedShader = warEnabled || paperEnabled;
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
   const onLocationClickRef = useRef(onLocationClick);
   const onAltitudeChangeRef = useRef(onAltitudeChange);
@@ -507,6 +516,10 @@ export default function Globe({
   }, [onAltitudeChange]);
 
   const globeMaterial = useMemo(() => {
+    if (!useStylizedShader) {
+      return null;
+    }
+
     const detailStrength = getDetailStrength(performanceProfile.lowPower);
     const wireStrength = clamp(settings.wireStrength, 0, 1.6);
     const hatchStrength = clamp(settings.hatchStrength, 0, 1.6);
@@ -590,6 +603,7 @@ uniform float uWireStrength;`
   }, [
     warEnabled,
     paperEnabled,
+    useStylizedShader,
     earthTexture,
     performanceProfile.lowPower,
     settings,
@@ -695,6 +709,12 @@ uniform float uWireStrength;`
     const scene = globe.scene();
     scene.background = null;
 
+    const ambientLight = new AmbientLight(0xffffff, 0.33);
+    const sunLight = new DirectionalLight(0xffffff, 1.08);
+    sunLight.position.copy(SUN_DIRECTION.clone().multiplyScalar(300));
+    scene.add(ambientLight);
+    scene.add(sunLight);
+
     globe.pointOfView({ lat: 35, lng: -40, altitude: 2.5 }, 0);
 
     const renderer = globe.renderer();
@@ -713,6 +733,8 @@ uniform float uWireStrength;`
 
     return () => {
       controls.removeEventListener("change", handleControlsChange);
+      scene.remove(ambientLight);
+      scene.remove(sunLight);
     };
   }, [performanceProfile.maxPixelRatio]);
 
@@ -737,7 +759,7 @@ uniform float uWireStrength;`
 
   useEffect(
     () => () => {
-      globeMaterial.dispose();
+      globeMaterial?.dispose();
     },
     [globeMaterial]
   );
@@ -790,7 +812,7 @@ uniform float uWireStrength;`
       backgroundColor="rgba(0,0,0,0)"
       backgroundImageUrl={null}
       globeImageUrl={EARTH_TEXTURE_URL}
-      globeMaterial={globeMaterial}
+      globeMaterial={globeMaterial ?? undefined}
       showGraticules={!warEnabled && !paperEnabled}
       showAtmosphere={settings.showAtmosphere}
       atmosphereColor={atmosphereColor}
