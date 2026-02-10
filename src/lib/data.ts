@@ -26,6 +26,7 @@ export const MOCK_EVENTS: LexerEvent[] = [
     id: "evt-1",
     name: "Neon Nights Meetup",
     manualLocation: "Bay Area, CA",
+    address: "The Midway, 900 Marin St, San Francisco, CA 94124",
     lat: 37.7849,
     lng: -122.4094,
     description:
@@ -42,6 +43,7 @@ export const MOCK_EVENTS: LexerEvent[] = [
     id: "evt-2",
     name: "Synthwave Gallery Opening",
     manualLocation: "Bay Area, CA",
+    address: "Gray Area, 2665 Mission St, San Francisco, CA 94110",
     lat: 37.7694,
     lng: -122.4262,
     description:
@@ -58,6 +60,7 @@ export const MOCK_EVENTS: LexerEvent[] = [
     id: "evt-3",
     name: "London Hackers Social",
     manualLocation: "London, UK",
+    address: "The Barbican Centre, Silk St, London EC2Y 8DS, UK",
     lat: 51.5174,
     lng: -0.1078,
     description:
@@ -74,6 +77,7 @@ export const MOCK_EVENTS: LexerEvent[] = [
     id: "evt-4",
     name: "Cyber Punk Rock Show",
     manualLocation: "London, UK",
+    address: "93 Feet East, 150 Brick Ln, London E1 6QL, UK",
     lat: 51.5244,
     lng: -0.0782,
     description:
@@ -90,6 +94,7 @@ export const MOCK_EVENTS: LexerEvent[] = [
     id: "evt-5",
     name: "NYC Creative Coders",
     manualLocation: "New York, NY",
+    address: "ITP/NYU, 370 Jay St, Brooklyn, NY 11201",
     lat: 40.7228,
     lng: -73.996,
     description:
@@ -106,6 +111,7 @@ export const MOCK_EVENTS: LexerEvent[] = [
     id: "evt-6",
     name: "Retro Arcade Night",
     manualLocation: "New York, NY",
+    address: "Barcade, 148 W 24th St, New York, NY 10011",
     lat: 40.7508,
     lng: -73.9875,
     description: "Classic arcade games, pixel art, and chiptune music.",
@@ -121,6 +127,7 @@ export const MOCK_EVENTS: LexerEvent[] = [
     id: "evt-7",
     name: "Toronto Indie Devs",
     manualLocation: "Toronto, ON",
+    address: "Gamma Space, 298 Brunswick Ave, Toronto, ON M5S 2M7",
     lat: 43.6472,
     lng: -79.3932,
     description:
@@ -137,6 +144,7 @@ export const MOCK_EVENTS: LexerEvent[] = [
     id: "evt-8",
     name: "Montréal Digital Arts Jam",
     manualLocation: "Montréal, QC",
+    address: "Eastern Bloc, 7240 Rue Clark, Montréal, QC H2R 1W4",
     lat: 45.5087,
     lng: -73.5543,
     description:
@@ -153,6 +161,7 @@ export const MOCK_EVENTS: LexerEvent[] = [
     id: "evt-9",
     name: "Montréal Glitch Art Workshop",
     manualLocation: "Montréal, QC",
+    address: "Perte de Signal, 243 Rue du Parc Industriel, Montréal, QC H8R 1J1",
     lat: 45.4957,
     lng: -73.5773,
     description:
@@ -167,6 +176,9 @@ export const MOCK_EVENTS: LexerEvent[] = [
   },
 ];
 
-export function getEventsForLocation(locationName: string): LexerEvent[] {
-  return MOCK_EVENTS.filter((e) => e.manualLocation === locationName);
+export function getEventsForLocation(
+  locationName: string,
+  events: LexerEvent[] = MOCK_EVENTS
+): LexerEvent[] {
+  return events.filter((e) => e.manualLocation === locationName);
 }

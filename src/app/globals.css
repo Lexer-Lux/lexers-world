@@ -6,12 +6,40 @@
   --neon-pink: #ff2d75;
   --neon-cyan: #00f0ff;
   --neon-purple: #b026ff;
+  --neon-yellow: #ffe156;
   --star-red: #ff1744;
+
+  /* Synthwave surface palette */
+  --surface-dark: rgba(10, 10, 20, 0.92);
+  --surface-card: rgba(10, 10, 25, 0.95);
+  --surface-overlay: rgba(5, 5, 15, 0.85);
+
+  /* Glow intensities */
+  --glow-pink: 0 0 10px rgba(255, 45, 117, 0.7), 0 0 30px rgba(255, 45, 117, 0.4);
+  --glow-pink-sm: 0 0 8px rgba(255, 45, 117, 0.6);
+  --glow-cyan: 0 0 10px rgba(0, 240, 255, 0.7), 0 0 30px rgba(0, 240, 255, 0.4);
+  --glow-cyan-sm: 0 0 6px rgba(0, 240, 255, 0.5);
+  --glow-purple: 0 0 10px rgba(176, 38, 255, 0.7), 0 0 30px rgba(176, 38, 255, 0.4);
+
+  /* Border colors */
+  --border-pink: rgba(255, 45, 117, 0.3);
+  --border-pink-bright: rgba(255, 45, 117, 0.5);
+  --border-cyan: rgba(0, 240, 255, 0.25);
+  --border-purple: rgba(176, 38, 255, 0.4);
+
+  /* Ben-Day dot pattern */
+  --benday-size: 4px;
+  --benday-color: rgba(255, 45, 117, 0.06);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-neon-pink: var(--neon-pink);
+  --color-neon-cyan: var(--neon-cyan);
+  --color-neon-purple: var(--neon-purple);
+  --color-neon-yellow: var(--neon-yellow);
+  --color-star-red: var(--star-red);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -24,22 +52,277 @@ body {
   overflow: hidden;
 }
 
+/* ============================================
+   PANEL ANIMATIONS
+   ============================================ */
+
 @keyframes slideIn {
-  from {
-    transform: translateX(100%);
-  }
-  to {
-    transform: translateX(0);
-  }
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes slideOut {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(100%); opacity: 0; }
 }
 
 @keyframes fadeScale {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
+  from { opacity: 0; transform: scale(0.92) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes fadeScaleOut {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.92); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Stagger-in for list items */
+@keyframes staggerUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================
+   RECURRING BADGE ANIMATIONS
+   ============================================ */
+
+@keyframes recArcErase {
+  0% { opacity: 1; stroke-dashoffset: 0; }
+  72% { opacity: 1; stroke-dashoffset: 1; }
+  100% { opacity: 0; stroke-dashoffset: 1; }
+}
+
+@keyframes recTipFade {
+  0%, 68% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes recLetterReveal {
+  0%, 35% { opacity: 0; }
+  45%, 78% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ============================================
+   BEN-DAY DOTS / HALFTONE
+   ============================================ */
+
+/* Panel halftone overlay — applied via .benday-overlay class */
+.benday-overlay {
+  position: relative;
+}
+.benday-overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background-image: radial-gradient(
+    circle,
+    var(--benday-color) 0.8px,
+    transparent 0.8px
+  );
+  background-size: var(--benday-size) var(--benday-size);
+  opacity: 0.7;
+  mix-blend-mode: screen;
+  border-radius: inherit;
+}
+
+/* Denser dots for cards */
+.benday-dense::before {
+  --benday-size: 3px;
+  --benday-color: rgba(176, 38, 255, 0.05);
+}
+
+/* Cyan dot variant */
+.benday-cyan::before {
+  --benday-color: rgba(0, 240, 255, 0.04);
+}
+
+/* ============================================
+   MOTION LINES
+   ============================================ */
+
+/* Horizontal speed lines — decorative background */
+@keyframes speedLines {
+  0% { background-position: 0 0; }
+  100% { background-position: -200px 0; }
+}
+
+.motion-lines {
+  position: relative;
+}
+.motion-lines::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.03;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 3px,
+    var(--neon-pink) 3px,
+    var(--neon-pink) 4px,
+    transparent 4px,
+    transparent 8px
+  );
+  animation: speedLines 3s linear infinite;
+  mask-image: linear-gradient(to right, transparent, black 20%, black 80%, transparent);
+}
+
+/* Radial burst lines — for emphasis moments */
+.burst-lines {
+  position: relative;
+}
+.burst-lines::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 120%;
+  height: 120%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg, rgba(255, 45, 117, 0.15) 2deg, transparent 4deg,
+    transparent 15deg, rgba(255, 45, 117, 0.15) 17deg, transparent 19deg,
+    transparent 30deg, rgba(255, 45, 117, 0.15) 32deg, transparent 34deg,
+    transparent 45deg, rgba(255, 45, 117, 0.15) 47deg, transparent 49deg,
+    transparent 60deg, rgba(255, 45, 117, 0.15) 62deg, transparent 64deg,
+    transparent 75deg, rgba(255, 45, 117, 0.15) 77deg, transparent 79deg,
+    transparent 90deg, rgba(255, 45, 117, 0.15) 92deg, transparent 94deg,
+    transparent 105deg, rgba(255, 45, 117, 0.15) 107deg, transparent 109deg,
+    transparent 120deg, rgba(255, 45, 117, 0.15) 122deg, transparent 124deg,
+    transparent 135deg, rgba(255, 45, 117, 0.15) 137deg, transparent 139deg,
+    transparent 150deg, rgba(255, 45, 117, 0.15) 152deg, transparent 154deg,
+    transparent 165deg, rgba(255, 45, 117, 0.15) 167deg, transparent 169deg,
+    transparent 180deg, rgba(255, 45, 117, 0.15) 182deg, transparent 184deg,
+    transparent 195deg, rgba(255, 45, 117, 0.15) 197deg, transparent 199deg,
+    transparent 210deg, rgba(255, 45, 117, 0.15) 212deg, transparent 214deg,
+    transparent 225deg, rgba(255, 45, 117, 0.15) 227deg, transparent 229deg,
+    transparent 240deg, rgba(255, 45, 117, 0.15) 242deg, transparent 244deg,
+    transparent 255deg, rgba(255, 45, 117, 0.15) 257deg, transparent 259deg,
+    transparent 270deg, rgba(255, 45, 117, 0.15) 272deg, transparent 274deg,
+    transparent 285deg, rgba(255, 45, 117, 0.15) 287deg, transparent 289deg,
+    transparent 300deg, rgba(255, 45, 117, 0.15) 302deg, transparent 304deg,
+    transparent 315deg, rgba(255, 45, 117, 0.15) 317deg, transparent 319deg,
+    transparent 330deg, rgba(255, 45, 117, 0.15) 332deg, transparent 334deg,
+    transparent 345deg, rgba(255, 45, 117, 0.15) 347deg, transparent 349deg,
+    transparent 360deg
+  );
+  transition: opacity 0.3s ease;
+}
+.burst-lines:active::after {
+  opacity: 1;
+}
+
+/* ============================================
+   COMIC ONOMATOPOEIA
+   ============================================ */
+
+@keyframes popIn {
+  0% { opacity: 0; transform: scale(0) rotate(-12deg); }
+  60% { opacity: 1; transform: scale(1.2) rotate(3deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+@keyframes popFloat {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-3px) rotate(1deg); }
+}
+
+@keyframes censorGlitch {
+  0%, 100% {
+    text-shadow: 0 0 4px rgba(255, 45, 117, 0.35);
+    filter: none;
   }
-  to {
-    opacity: 1;
-    transform: scale(1);
+  20% {
+    text-shadow: 1px 0 0 rgba(0, 240, 255, 0.45), -1px 0 0 rgba(255, 45, 117, 0.45);
+    filter: blur(0.2px);
+  }
+  23% {
+    text-shadow: -1px 0 0 rgba(0, 240, 255, 0.45), 1px 0 0 rgba(255, 45, 117, 0.45);
+    filter: none;
+  }
+}
+
+.glitch-redact {
+  display: inline-block;
+  padding: 0 0.25rem;
+  color: rgba(255, 45, 117, 0.95);
+  background: linear-gradient(90deg, rgba(255, 45, 117, 0.2), rgba(176, 38, 255, 0.2));
+  border: 1px solid rgba(255, 45, 117, 0.35);
+  animation: censorGlitch 2.2s steps(2, end) infinite;
+}
+
+/* ============================================
+   DOOR BUTTON ENHANCED
+   ============================================ */
+
+@keyframes doorGlow {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes lightSpill {
+  0% { opacity: 0; box-shadow: 0 0 0 rgba(0, 240, 255, 0); }
+  100% { opacity: 1; box-shadow: 0 0 30px rgba(0, 240, 255, 0.4), 0 0 60px rgba(0, 240, 255, 0.2); }
+}
+
+/* ============================================
+   MICRO-INTERACTIONS
+   ============================================ */
+
+/* Neon hover pulse */
+@keyframes neonPulse {
+  0%, 100% { box-shadow: 0 0 5px rgba(255, 45, 117, 0.2); }
+  50% { box-shadow: 0 0 15px rgba(255, 45, 117, 0.4), 0 0 30px rgba(255, 45, 117, 0.1); }
+}
+
+/* Scanline sweep effect for panels */
+.scanline::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(0, 240, 255, 0.3),
+    rgba(0, 240, 255, 0.6),
+    rgba(0, 240, 255, 0.3),
+    transparent
+  );
+  z-index: 2;
+  pointer-events: none;
+  animation: scanlineSweep 4s ease-in-out infinite;
+}
+
+@keyframes scanlineSweep {
+  0%, 100% { top: -2px; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  95% { top: 100%; opacity: 0; }
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 640px) {
+  :root {
+    --benday-size: 3px;
   }
 }
