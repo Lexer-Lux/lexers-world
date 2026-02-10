@@ -15,7 +15,7 @@ export default function RecurringBadge({ size = 28 }: RecurringBadgeProps) {
   const cx = 50, cy = 50, r = 35;
   const letters = "RECURRING!".split("");
   const totalLetters = letters.length;
-  const loopDuration = 1.4;
+  const loopDuration = 1.6;
 
   // Arc spans from startAngle to endAngle (degrees, 0 = right, clockwise)
   const startAngle = -120; // top-left
@@ -61,7 +61,7 @@ export default function RecurringBadge({ size = 28 }: RecurringBadgeProps) {
 
   return (
     <div
-      className="group/rec inline-block cursor-default"
+      className="inline-block cursor-default"
       style={{ width: size, height: size }}
     >
       <svg
@@ -78,12 +78,10 @@ export default function RecurringBadge({ size = 28 }: RecurringBadgeProps) {
           stroke="#b026ff"
           strokeWidth="3"
           strokeLinecap="round"
-          className="group-hover/rec:[animation-play-state:running]"
           style={{
             strokeDasharray: 1,
             strokeDashoffset: 0,
             animation: `recArcErase ${loopDuration}s steps(${totalLetters}, end) infinite`,
-            animationPlayState: "paused",
           }}
         />
         {/* Arrow tip — fades out on hover */}
@@ -94,10 +92,8 @@ export default function RecurringBadge({ size = 28 }: RecurringBadgeProps) {
           strokeWidth="3"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="group-hover/rec:[animation-play-state:running]"
           style={{
             animation: `recTipFade ${loopDuration}s linear infinite`,
-            animationPlayState: "paused",
           }}
         />
 
@@ -114,11 +110,10 @@ export default function RecurringBadge({ size = 28 }: RecurringBadgeProps) {
             fontFamily="monospace"
             fontWeight="900"
             fontSize="13"
-            className="opacity-0 group-hover/rec:[animation-play-state:running]"
+            className="opacity-0"
             style={{
               animation: `recLetterReveal ${loopDuration}s linear infinite`,
               animationDelay: `${delay}s`,
-              animationPlayState: "paused",
               filter: "drop-shadow(0 0 3px rgba(176, 38, 255, 0.6))",
             }}
           >

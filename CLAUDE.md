@@ -165,7 +165,7 @@ Interactive web app featuring a 3D globe showing events at key locations worldwi
 - [ ] Real FX conversion for event cost display (live rates)
 
 #### Track B
-- [ ] TBD (deferred)
+- [ ] Flesh out geolocation-related settings (brainstorming)
 
 ## Open Questions
 None currently.

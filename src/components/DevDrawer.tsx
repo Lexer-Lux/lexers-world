@@ -271,13 +271,60 @@ export default function DevDrawer({
       setOpen((prev) => !prev);
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown, { capture: true });
+    return () => window.removeEventListener("keydown", handleKeyDown, { capture: true });
   }, []);
+
+  useEffect(() => {
+    let startX = 0;
+    let startY = 0;
+
+    const handleTouchStart = (event: TouchEvent) => {
+      if (event.touches.length !== 1) {
+        return;
+      }
+
+      const touch = event.touches[0];
+      startX = touch.clientX;
+      startY = touch.clientY;
+    };
+
+    const handleTouchEnd = (event: TouchEvent) => {
+      if (event.changedTouches.length !== 1) {
+        return;
+      }
+
+      const touch = event.changedTouches[0];
+      const deltaX = touch.clientX - startX;
+      const deltaY = touch.clientY - startY;
+
+      if (Math.abs(deltaY) > 48) {
+        return;
+      }
+
+      const nearLeftEdge = startX <= 28;
+
+      if (!open && nearLeftEdge && deltaX > 56) {
+        setOpen(true);
+      }
+
+      if (open && deltaX < -56) {
+        setOpen(false);
+      }
+    };
+
+    window.addEventListener("touchstart", handleTouchStart, { passive: true });
+    window.addEventListener("touchend", handleTouchEnd, { passive: true });
+
+    return () => {
+      window.removeEventListener("touchstart", handleTouchStart);
+      window.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, [open]);
 
   const wrapperClassName = useMemo(
     () =>
-      `fixed bottom-4 right-4 z-50 w-[min(92vw,420px)] transition-transform duration-300 ${open ? "translate-x-0" : "translate-x-[calc(100%-44px)]"}`,
+      `fixed bottom-4 left-4 z-50 w-[min(92vw,420px)] transition-transform duration-300 ${open ? "translate-x-0" : "-translate-x-[calc(100%+18px)]"}`,
     [open]
   );
 

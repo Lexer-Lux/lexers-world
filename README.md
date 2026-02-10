@@ -78,7 +78,9 @@ If you already have allowlist rows, run `supabase/allowlist-normalization.sql` o
 
 ## Runtime Tuning (Dev Drawer)
 
-- Press `Tab` to toggle the Dev Drawer (except when typing in an input/textarea/select).
+- Press `Tab` to toggle the Dev Drawer (except while typing in input/textarea/select fields).
+- On mobile, swipe in from the left edge to open; swipe left to close.
+- Drawer anchors to the left side so map/action UI can live on the right.
 - The drawer exposes runtime controls for globe aesthetics and interaction thresholds (zoom threshold, rotation, wire/hatch strength, boundary tiers, title visibility).
 - Phase 5A experiment mode toggle: `Default`, `WarGames`, and `Paper`.
 - WarGames editors: line density, glow strength, and sweep strength.

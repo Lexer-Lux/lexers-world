@@ -11,7 +11,6 @@ import RecurringBadge from "./RecurringBadge";
 interface EventDetailViewProps {
   event: LexerEvent;
   viewerMode: ViewerMode;
-  onBack: () => void;
   onClose: () => void;
 }
 
@@ -117,7 +116,6 @@ function formatCurrency(amount: number, currency: string): string {
 export default function EventDetailView({
   event,
   viewerMode,
-  onBack,
   onClose,
 }: EventDetailViewProps) {
   const [isDoorPressed, setIsDoorPressed] = useState(false);
@@ -240,33 +238,23 @@ export default function EventDetailView({
           className="relative z-[2] flex items-center justify-between px-4 py-3 sm:px-5"
           style={{ borderBottom: "1px solid rgba(255, 45, 117, 0.2)" }}
         >
-          <button
-            onClick={onBack}
-            className="flex min-h-[44px] cursor-pointer items-center gap-1 text-sm transition-colors hover:opacity-80 sm:min-h-0"
-            style={{ color: "var(--neon-purple)", fontFamily: "monospace" }}
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path
-                d="M10 3L5 8l5 5"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            BACK
-          </button>
+          <span className="font-mono text-[11px] uppercase tracking-[0.22em]" style={{ color: "var(--copy-muted)" }}>
+            EVENT
+          </span>
           <button
             onClick={onClose}
             aria-label="Close event detail"
-            className="flex h-10 w-10 cursor-pointer items-center justify-center rounded transition-colors hover:bg-white/10 sm:h-7 sm:w-7"
-            style={{ color: "var(--neon-pink)" }}
+            className="flex h-9 w-9 cursor-pointer items-center justify-center rounded border transition-colors"
+            style={{
+              color: "var(--neon-pink)",
+              borderColor: "var(--border-pink)",
+              background: "rgba(255, 45, 117, 0.06)",
+            }}
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
               <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
             </svg>
           </button>
-          <span className="comic-caption font-comic absolute -bottom-3 right-7 text-[11px]">BLAM!</span>
         </div>
 
         <div className="relative z-[2] flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
@@ -495,17 +483,6 @@ function DoorButton({
           ENTER
         </span>
 
-        <span
-          className="font-mono absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-black uppercase tracking-widest opacity-0 transition-all duration-300
-            group-hover/door:-translate-y-1 group-hover/door:opacity-100"
-          style={{
-            color: "var(--neon-yellow)",
-            textShadow: "0 0 6px rgba(255, 225, 86, 0.5)",
-            transform: "translateX(-50%)",
-          }}
-        >
-          CLACK! CLACK!
-        </span>
       </div>
     </a>
   );

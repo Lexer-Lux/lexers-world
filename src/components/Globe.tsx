@@ -9,12 +9,9 @@ import {
   GlobeExperimentMode,
   GlobeRuntimeSettings,
 } from "@/lib/globe-settings";
-import type { LexerEvent } from "@/lib/types";
+import type { KeyLocation, LexerEvent } from "@/lib/types";
 
 const SUN_DIRECTION = new Vector3(0.84, 0.28, 0.46).normalize();
-const TITLE_MARKER_ID = "globe-title";
-const TITLE_MARKER_LAT = 70;
-const TITLE_MARKER_LNG = -40;
 const EARTH_TEXTURE_URL = "https://unpkg.com/three-globe/example/img/earth-night.jpg";
 
 type BoundaryTier = "country" | "admin1" | "admin2";
@@ -46,22 +43,8 @@ interface GlobeProps {
   onLocationClick: (locationName: string) => void;
   onEventClick: (event: LexerEvent) => void;
   runtimeSettings?: GlobeRuntimeSettings;
+  onAltitudeChange?: (altitude: number) => void;
 }
-
-type GlobeHtmlElementData =
-  | {
-      id: typeof TITLE_MARKER_ID;
-      lat: number;
-      lng: number;
-      kind: "title";
-    }
-  | {
-      id: string;
-      lat: number;
-      lng: number;
-      name: string;
-      kind: "location";
-    };
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -277,12 +260,12 @@ vec3 nightColor = vec3(0.015, 0.028, 0.08);
 
 vec3 ink = mix(nightColor, dayColor, dayMix);
 ink = mix(ink, twilightColor, smoothstep(-0.08, 0.08, sunDot) * 0.44);
-diffuseColor.rgb = mix(diffuseColor.rgb, ink, 0.58);
+diffuseColor.rgb = mix(diffuseColor.rgb, ink, 0.72);
 
 float terminatorNoise = sin(vWorldPosition.x * 0.07 + vWorldPosition.y * 0.11 + vWorldPosition.z * 0.09) * 0.5 + 0.5;
 float terminatorBand = (1.0 - smoothstep(0.0, 0.06, abs(sunDot))) * mix(0.78, 1.22, terminatorNoise);
 vec3 terminatorColor = vec3(1.0, 0.57, 0.18);
-diffuseColor.rgb += terminatorColor * terminatorBand * (0.62 + uDetailStrength * 0.32);
+diffuseColor.rgb += terminatorColor * terminatorBand * (0.82 + uDetailStrength * 0.4);
 
 float lon = atan(worldNormal.z, worldNormal.x);
 float lat = asin(clamp(worldNormal.y, -1.0, 1.0));
@@ -311,6 +294,10 @@ function buildWarGamesFragmentBody(settings: GlobeRuntimeSettings, lowPower: boo
   );
   const glowStrength = shaderFloat(clamp(settings.warGamesGlowStrength, 0, 2));
   const sweepStrength = shaderFloat(clamp(settings.warGamesSweepStrength, 0, 2));
+  const crosshatchDensity = shaderFloat(
+    clamp(settings.crosshatchDensity, 0.4, 2.2) * (lowPower ? 0.8 : 1)
+  );
+  const crosshatchThreshold = shaderFloat(clamp(settings.crosshatchThreshold, 0.82, 0.98));
 
   return `vec3 worldNormal = normalize(vWorldNormal);
 float sunDot = dot(worldNormal, normalize(uSunDirection));
@@ -322,13 +309,18 @@ float majorLat = 1.0 - smoothstep(0.9, 0.995, abs(sin(lat * ${lineDensity} * 0.9
 float minorLon = 1.0 - smoothstep(0.962, 0.999, abs(sin(lon * ${lineDensity} * 2.6)));
 float minorLat = 1.0 - smoothstep(0.962, 0.999, abs(sin(lat * ${lineDensity} * 2.35)));
 
-float wireMask = clamp(max(majorLon, majorLat) * (0.7 + uWireStrength * 0.6) + max(minorLon, minorLat) * 0.35 * uWireStrength, 0.0, 1.0);
+float wireMask = clamp(max(majorLon, majorLat) * (0.4 + uWireStrength * 0.95) + max(minorLon, minorLat) * 0.55 * uWireStrength, 0.0, 1.0);
 float dayMix = smoothstep(-0.14, 0.55, sunDot);
 float nightMix = 1.0 - dayMix;
 
 vec3 baseColor = vec3(0.01, 0.04, 0.03);
 vec3 lineColor = vec3(0.24, 1.0, 0.69);
 vec3 glowColor = vec3(0.53, 1.0, 0.8);
+
+float hatchA = abs(sin((vWorldPosition.x + vWorldPosition.y) * (0.16 * ${crosshatchDensity})));
+float hatchB = abs(sin((vWorldPosition.y - vWorldPosition.z) * (0.19 * ${crosshatchDensity})));
+float hatchMask = clamp(step(${crosshatchThreshold}, hatchA) * 0.58 + step(${crosshatchThreshold}, hatchB) * 0.42, 0.0, 1.0);
+float hatchDim = hatchMask * uHatchStrength * (0.18 + nightMix * 0.32);
 
 float sweepPattern = 1.0 - smoothstep(0.85, 0.998, abs(sin(vWorldPosition.y * 0.11 + vWorldPosition.x * 0.13)));
 float sweep = sweepPattern * ${sweepStrength};
@@ -338,6 +330,7 @@ diffuseColor.rgb = baseColor + lineColor * wireMask;
 diffuseColor.rgb += lineColor * sweep * 0.24;
 diffuseColor.rgb += glowColor * horizonBand * (0.22 + ${glowStrength} * 0.35);
 diffuseColor.rgb += lineColor * nightMix * 0.08 * ${glowStrength};
+diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.56, hatchDim);
 
 float starNoise = fract(sin(dot(vWorldPosition.xy + vec2(vWorldPosition.z), vec2(12.9898, 78.233))) * 43758.5453);
 diffuseColor.rgb += step(0.997, starNoise) * glowColor * 0.35 * ${glowStrength};
@@ -416,11 +409,13 @@ export default function Globe({
   onLocationClick,
   onEventClick,
   runtimeSettings,
+  onAltitudeChange,
 }: GlobeProps) {
   const settings = runtimeSettings ?? DEFAULT_GLOBE_RUNTIME_SETTINGS;
   const mode = settings.globeExperimentMode;
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
   const onLocationClickRef = useRef(onLocationClick);
+  const onAltitudeChangeRef = useRef(onAltitudeChange);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [altitude, setAltitude] = useState(2.5);
   const performanceProfile = useMemo(() => getPerformanceProfile(), []);
@@ -428,6 +423,10 @@ export default function Globe({
   useEffect(() => {
     onLocationClickRef.current = onLocationClick;
   }, [onLocationClick]);
+
+  useEffect(() => {
+    onAltitudeChangeRef.current = onAltitudeChange;
+  }, [onAltitudeChange]);
 
   const globeMaterial = useMemo(() => {
     const detailStrength = getDetailStrength(performanceProfile.lowPower);
@@ -594,6 +593,7 @@ uniform float uWireStrength;`
     const handleControlsChange = () => {
       const pov = globe.pointOfView();
       setAltitude(pov.altitude);
+      onAltitudeChangeRef.current?.(pov.altitude);
     };
 
     handleControlsChange();
@@ -631,27 +631,7 @@ uniform float uWireStrength;`
   );
 
   const markerHtml = useCallback(
-    (data: GlobeHtmlElementData) => {
-      if (data.kind === "title") {
-        return `
-          <div style="
-            transform: translate(-50%, -50%);
-            pointer-events: none;
-            width: 280px;
-            opacity: 0.95;
-          ">
-            <svg viewBox="0 0 560 170" role="presentation" focusable="false" style="width: 100%; height: auto; overflow: visible;">
-              <defs>
-                <path id="lexer-title-arc" d="M 54 148 A 226 226 0 0 1 506 148" />
-              </defs>
-              <text fill="#ff2d75" font-size="38" font-weight="800" letter-spacing="0.2em" style="font-family:monospace;filter: drop-shadow(0 0 8px rgba(255,45,117,0.55));">
-                <textPath href="#lexer-title-arc" startOffset="50%" text-anchor="middle">LEXER'S WORLD</textPath>
-              </text>
-            </svg>
-          </div>
-        `;
-      }
-
+    (data: KeyLocation) => {
       const location = data;
       if (!isZoomedOut) {
         return "";
@@ -689,30 +669,6 @@ uniform float uWireStrength;`
     },
     [isZoomedOut, markerScale, mode]
   );
-
-  const htmlElementsData = useMemo<GlobeHtmlElementData[]>(() => {
-    const data: GlobeHtmlElementData[] = [];
-
-    if (settings.showCurvedTitle) {
-      data.push({
-        id: TITLE_MARKER_ID,
-        lat: TITLE_MARKER_LAT,
-        lng: TITLE_MARKER_LNG,
-        kind: "title",
-      });
-    }
-
-    if (isZoomedOut) {
-      data.push(
-        ...KEY_LOCATIONS.map((location) => ({
-          ...location,
-          kind: "location" as const,
-        }))
-      );
-    }
-
-    return data;
-  }, [isZoomedOut, settings.showCurvedTitle]);
 
   return (
     <ReactGlobe
@@ -762,28 +718,23 @@ uniform float uWireStrength;`
       }}
       arcDashAnimateTime={0}
       arcsTransitionDuration={0}
-      htmlElementsData={htmlElementsData}
-      htmlLat={(data) => (data as GlobeHtmlElementData).lat}
-      htmlLng={(data) => (data as GlobeHtmlElementData).lng}
+      htmlElementsData={isZoomedOut ? KEY_LOCATIONS : []}
+      htmlLat={(data) => (data as KeyLocation).lat}
+      htmlLng={(data) => (data as KeyLocation).lng}
       htmlElement={(data) => {
-        const htmlData = data as GlobeHtmlElementData;
+        const location = data as KeyLocation;
         const element = document.createElement("div");
-        element.innerHTML = markerHtml(htmlData);
-
-        if (htmlData.kind === "location") {
-          element.style.pointerEvents = "auto";
-          element.style.cursor = "pointer";
-          element.onclick = (event) => {
-            event.stopPropagation();
-            onLocationClickRef.current(htmlData.name);
-          };
-        } else {
-          element.style.pointerEvents = "none";
-        }
+        element.innerHTML = markerHtml(location);
+        element.style.pointerEvents = "auto";
+        element.style.cursor = "pointer";
+        element.onclick = (event) => {
+          event.stopPropagation();
+          onLocationClickRef.current(location.name);
+        };
 
         return element;
       }}
-      htmlAltitude={(data) => ((data as GlobeHtmlElementData).kind === "title" ? 0.2 : 0)}
+      htmlAltitude={0}
       htmlTransitionDuration={0}
       pointsData={isZoomedOut ? [] : events}
       pointLat={(data) => (data as LexerEvent).lat}

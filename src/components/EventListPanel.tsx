@@ -33,11 +33,11 @@ export default function EventListPanel({
 
       {/* Panel */}
       <div
-        className="panel-shell benday-overlay scanline motion-lines absolute inset-x-0 bottom-0 top-auto h-[76vh]
-          rounded-t-2xl pointer-events-auto overflow-hidden animate-[slideUp_0.32s_cubic-bezier(0.16,1,0.3,1)]
-          sm:inset-y-0 sm:left-auto sm:right-0 sm:h-full sm:w-full sm:max-w-md sm:rounded-none sm:animate-[slideIn_0.3s_ease-out]"
+        className="panel-shell benday-overlay scanline motion-lines absolute inset-y-0 right-0 h-full w-[min(92vw,360px)]
+          rounded-l-2xl pointer-events-auto overflow-hidden animate-[slideIn_0.3s_ease-out]
+          md:inset-x-0 md:bottom-0 md:top-auto md:h-[42vh] md:w-full md:max-h-[48vh] md:rounded-l-none md:rounded-t-2xl md:animate-[slideUp_0.32s_cubic-bezier(0.16,1,0.3,1)]"
         style={{
-          borderLeft: "1px solid var(--border-purple)",
+          borderRight: "1px solid var(--border-purple)",
           borderTop: "1px solid var(--border-purple)",
         }}
       >
@@ -73,7 +73,6 @@ export default function EventListPanel({
                 />
               </svg>
             </button>
-            <span className="comic-caption font-comic absolute -bottom-3 left-4 text-[11px]">WHOOSH!</span>
           </div>
 
           {/* Event list */}
@@ -146,11 +145,6 @@ export default function EventListPanel({
                     >
                       {event.description}
                     </p>
-
-                    <span className="font-comic absolute -top-2 right-8 text-[11px] opacity-0 transition-all duration-200 group-hover/card:opacity-100 group-hover/card:-translate-y-1" style={{ color: "var(--neon-yellow)" }}>
-                      SWISH!
-                    </span>
-
                     {/* Comic action arrow — appears on hover */}
                     <div
                       className="absolute bottom-3 right-3 opacity-0 transition-opacity duration-200 group-hover/card:opacity-100"

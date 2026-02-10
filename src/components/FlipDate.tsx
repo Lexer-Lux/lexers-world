@@ -1,21 +1,34 @@
 "use client";
 
+import { useState } from "react";
+
 interface FlipDateProps {
   iso: string;
   className?: string;
 }
 
 function toIsoDisplay(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toISOString().replace(".000", ""); // "2026-03-15T20:00:00Z"
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return iso;
+  }
+
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  const hour = String(date.getUTCHours()).padStart(2, "0");
+  const minute = String(date.getUTCMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day} ${hour}:${minute} UTC`;
 }
 
 function toHumanDisplay(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return iso;
+  }
 
-  return d.toLocaleDateString("en-US", {
+  return date.toLocaleString(undefined, {
+    weekday: "short",
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -25,24 +38,29 @@ function toHumanDisplay(iso: string): string {
 }
 
 export default function FlipDate({ iso, className = "" }: FlipDateProps) {
+  const [flipped, setFlipped] = useState(false);
+
   return (
-    <span
-      className={`group/flip inline-block cursor-default ${className}`}
+    <button
+      type="button"
+      className={`group/flip inline-block cursor-pointer ${className}`}
       style={{ perspective: "300px" }}
+      onMouseEnter={() => setFlipped(true)}
+      onMouseLeave={() => setFlipped(false)}
+      onClick={() => setFlipped((value) => !value)}
+      aria-label="Toggle date format"
     >
       <span
-        className="relative inline-block transition-transform duration-300 ease-in-out
-          group-hover/flip:[transform:rotateX(180deg)]"
-        style={{ transformStyle: "preserve-3d", whiteSpace: "nowrap" }}
+        className="relative inline-block transition-transform duration-300 ease-in-out"
+        style={{
+          transformStyle: "preserve-3d",
+          whiteSpace: "nowrap",
+          transform: flipped ? "rotateX(180deg)" : "rotateX(0deg)",
+        }}
       >
-        {/* Front face — ISO */}
-        <span
-          className="inline-block"
-          style={{ backfaceVisibility: "hidden" }}
-        >
+        <span className="inline-block" style={{ backfaceVisibility: "hidden" }}>
           {toIsoDisplay(iso)}
         </span>
-        {/* Back face — human-readable */}
         <span
           className="absolute left-0 top-0 inline-block"
           style={{
@@ -53,6 +71,6 @@ export default function FlipDate({ iso, className = "" }: FlipDateProps) {
           {toHumanDisplay(iso)}
         </span>
       </span>
-    </span>
+    </button>
   );
 }

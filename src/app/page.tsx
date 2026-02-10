@@ -10,12 +10,17 @@ import {
 import { getEventsForLocation, MOCK_EVENTS } from "@/lib/data";
 import { LEXER_TWITTER_URL } from "@/lib/app-config";
 import { DEFAULT_GLOBE_RUNTIME_SETTINGS } from "@/lib/globe-settings";
-import { OUTSIDER_PRIVACY_DISCLAIMER, REDACTED_ADDRESS_LABEL } from "@/lib/privacy-constants";
+import {
+  INSIDER_PRIVACY_DISCLAIMER,
+  OUTSIDER_PRIVACY_DISCLAIMER,
+  REDACTED_ADDRESS_LABEL,
+} from "@/lib/privacy-constants";
 import type { EventsApiResponse, LexerEvent, ViewerMode } from "@/lib/types";
 import { getSupabaseBrowserClient, isSupabaseBrowserConfigured } from "@/lib/supabase";
 import DevDrawer from "@/components/DevDrawer";
 import EventListPanel from "@/components/EventListPanel";
 import EventDetailView from "@/components/EventDetailView";
+import GlobeTitlePlane from "@/components/GlobeTitlePlane";
 import LockIcon, { AuthState } from "@/components/LockIcon";
 
 import type { Session } from "@supabase/supabase-js";
@@ -46,6 +51,7 @@ export default function Home() {
 
   const [session, setSession] = useState<Session | null>(null);
   const [authState, setAuthState] = useState<AuthState>("unauthenticated");
+  const [globeAltitude, setGlobeAltitude] = useState(2.5);
   const [runtimeSettings, setRuntimeSettings] = useState(DEFAULT_GLOBE_RUNTIME_SETTINGS);
   const [aestheticSettings, setAestheticSettings] =
     useState<AestheticRuntimeSettings>(DEFAULT_AESTHETIC_RUNTIME_SETTINGS);
@@ -215,6 +221,13 @@ export default function Home() {
   const isWarGamesMode = runtimeSettings.globeExperimentMode === "wargames";
   const isPaperMode = runtimeSettings.globeExperimentMode === "paper";
 
+  const lockDetailMessage =
+    authState === "insider"
+      ? INSIDER_PRIVACY_DISCLAIMER
+      : authState === "unauthenticated"
+      ? privacyDisclaimer
+      : authMessage;
+
   const runtimeCssVars = useMemo(
     () =>
       ({
@@ -288,10 +301,6 @@ export default function Home() {
     }
   };
 
-  const handleBack = () => {
-    setSelectedEvent(null);
-  };
-
   const handleClose = () => {
     setSelectedLocation(null);
     setSelectedEvent(null);
@@ -344,16 +353,19 @@ export default function Home() {
         onLocationClick={handleLocationClick}
         onEventClick={handleEventClick}
         runtimeSettings={runtimeSettings}
+        onAltitudeChange={setGlobeAltitude}
       />
 
       {/* Lock icon — auth UI */}
-      <LockIcon
-        authState={authState}
-        username={twitterUsername}
-        detailMessage={authMessage}
-        onSignIn={handleSignIn}
-        onSignOut={handleSignOut}
-      />
+        <LockIcon
+          authState={authState}
+          username={twitterUsername}
+          detailMessage={lockDetailMessage}
+          onSignIn={handleSignIn}
+          onSignOut={handleSignOut}
+        />
+
+      <GlobeTitlePlane altitude={globeAltitude} enabled={runtimeSettings.showCurvedTitle} />
 
       {/* Event list panel */}
       {selectedLocation && !selectedEvent && (
@@ -371,24 +383,8 @@ export default function Home() {
         <EventDetailView
           event={selectedEvent}
           viewerMode={viewerMode}
-          onBack={handleBack}
           onClose={handleClose}
         />
-      )}
-
-      {viewerMode === "outsider" && (
-        <div className="mobile-safe-bottom absolute bottom-1 left-1/2 z-10 -translate-x-1/2 px-4 pointer-events-none">
-          <p
-            className="font-mono text-center text-[9px] tracking-wide leading-tight sm:text-[10px]"
-            style={{
-              color: "rgba(255, 225, 86, 0.9)",
-              textShadow: "0 0 8px rgba(255, 225, 86, 0.25)",
-              maxWidth: "92vw",
-            }}
-          >
-            {privacyDisclaimer}
-          </p>
-        </div>
       )}
 
       <a
