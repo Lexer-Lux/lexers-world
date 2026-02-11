@@ -283,7 +283,7 @@ function buildDefaultFragmentBody(settings: GlobeRuntimeSettings, lowPower: bool
   const crosshatchDensity = shaderFloat(
     clamp(settings.crosshatchDensity, 0.4, 2.2) * (lowPower ? 0.82 : 1)
   );
-  const crosshatchThreshold = clamp(settings.crosshatchThreshold, 0.82, 0.98);
+  const crosshatchThreshold = clamp(settings.crosshatchThreshold, 0.55, 0.98);
   const thresholdA = shaderFloat(crosshatchThreshold);
   const thresholdB = shaderFloat(clamp(crosshatchThreshold + 0.02, 0.82, 0.995));
   const thresholdC = shaderFloat(clamp(crosshatchThreshold + 0.04, 0.84, 0.998));
@@ -300,9 +300,9 @@ vec3 nightColor = vec3(0.015, 0.028, 0.08);
 
 vec3 ink = mix(nightColor, dayColor, dayMix);
 ink = mix(ink, twilightColor, smoothstep(-0.08, 0.08, sunDot) * 0.44);
-vec3 lightingTint = mix(vec3(0.42, 0.5, 0.66), vec3(1.06, 1.03, 0.96), dayMix);
+vec3 lightingTint = mix(vec3(0.3, 0.35, 0.56), vec3(1.12, 1.08, 0.98), dayMix);
 diffuseColor.rgb *= lightingTint;
-diffuseColor.rgb = mix(diffuseColor.rgb, ink, 0.34);
+diffuseColor.rgb = mix(diffuseColor.rgb, ink, 0.26);
 
 float terminatorNoise = sin(vWorldPosition.x * 0.07 + vWorldPosition.y * 0.11 + vWorldPosition.z * 0.09) * 0.5 + 0.5;
 float terminatorBand = (1.0 - smoothstep(0.0, 0.06, abs(sunDot))) * mix(0.78, 1.22, terminatorNoise);
@@ -321,7 +321,7 @@ float hatchA = abs(sin((vWorldPosition.x + vWorldPosition.y) * (0.2 * ${crosshat
 float hatchB = abs(sin((vWorldPosition.x - vWorldPosition.z) * (0.24 * ${crosshatchDensity})));
 float hatchC = abs(sin((vWorldPosition.y + vWorldPosition.z) * (0.17 * ${crosshatchDensity})));
 float hatchMask = clamp(step(${thresholdA}, hatchA) * 0.45 + step(${thresholdB}, hatchB) * 0.35 + step(${thresholdC}, hatchC) * 0.2, 0.0, 1.0);
-float hatchAmount = nightMix * uHatchStrength * (0.35 + uDetailStrength * 0.45);
+float hatchAmount = (0.08 + nightMix * 0.78) * uHatchStrength * (0.35 + uDetailStrength * 0.45);
 diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.3, hatchMask * hatchAmount);
 
 float rim = pow(1.0 - max(dot(worldNormal, normalize(cameraPosition - vWorldPosition)), 0.0), 2.1);
@@ -339,7 +339,7 @@ function buildWarGamesFragmentBody(settings: GlobeRuntimeSettings, lowPower: boo
   const crosshatchDensity = shaderFloat(
     clamp(settings.crosshatchDensity, 0.4, 2.2) * (lowPower ? 0.8 : 1)
   );
-  const crosshatchThreshold = shaderFloat(clamp(settings.crosshatchThreshold, 0.82, 0.98));
+  const crosshatchThreshold = shaderFloat(clamp(settings.crosshatchThreshold, 0.55, 0.98));
 
   return `vec3 worldNormal = normalize(vWorldNormal);
 float sunDot = dot(worldNormal, normalize(uSunDirection));
@@ -393,7 +393,7 @@ function buildPaperFragmentBody(settings: GlobeRuntimeSettings, lowPower: boolea
   const crosshatchDensity = shaderFloat(
     clamp(settings.crosshatchDensity, 0.4, 2.2) * (lowPower ? 0.82 : 1)
   );
-  const crosshatchThreshold = shaderFloat(clamp(settings.crosshatchThreshold, 0.82, 0.98));
+  const crosshatchThreshold = shaderFloat(clamp(settings.crosshatchThreshold, 0.55, 0.98));
 
   return `vec3 worldNormal = normalize(vWorldNormal);
 float sunDot = dot(worldNormal, normalize(uSunDirection));
@@ -481,7 +481,6 @@ export default function Globe({
   const settings = runtimeSettings ?? DEFAULT_GLOBE_RUNTIME_SETTINGS;
   const warEnabled = settings.enableWarGamesEffect;
   const paperEnabled = settings.enablePaperEffect;
-  const useStylizedShader = warEnabled || paperEnabled;
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
   const onLocationClickRef = useRef(onLocationClick);
   const onAltitudeChangeRef = useRef(onAltitudeChange);
@@ -516,10 +515,6 @@ export default function Globe({
   }, [onAltitudeChange]);
 
   const globeMaterial = useMemo(() => {
-    if (!useStylizedShader) {
-      return null;
-    }
-
     const detailStrength = getDetailStrength(performanceProfile.lowPower);
     const wireStrength = clamp(settings.wireStrength, 0, 1.6);
     const hatchStrength = clamp(settings.hatchStrength, 0, 1.6);
@@ -537,11 +532,11 @@ export default function Globe({
     const uniforms: GlobeShaderUniforms = {
       uSunDirection: { value: SUN_DIRECTION },
       uHatchStrength: {
-        value: performanceProfile.lowPower ? 0 : detailStrength * hatchStrength,
+        value: performanceProfile.lowPower ? 0 : detailStrength * hatchStrength * 1.25,
       },
       uDetailStrength: { value: detailStrength },
       uWireStrength: {
-        value: (performanceProfile.lowPower ? 0.36 : 0.76) * wireStrength,
+        value: (performanceProfile.lowPower ? 0.45 : 1.15) * wireStrength,
       },
     };
 
@@ -603,7 +598,6 @@ uniform float uWireStrength;`
   }, [
     warEnabled,
     paperEnabled,
-    useStylizedShader,
     earthTexture,
     performanceProfile.lowPower,
     settings,
@@ -812,7 +806,7 @@ uniform float uWireStrength;`
       backgroundColor="rgba(0,0,0,0)"
       backgroundImageUrl={null}
       globeImageUrl={EARTH_TEXTURE_URL}
-      globeMaterial={globeMaterial ?? undefined}
+      globeMaterial={globeMaterial}
       showGraticules={!warEnabled && !paperEnabled}
       showAtmosphere={settings.showAtmosphere}
       atmosphereColor={atmosphereColor}

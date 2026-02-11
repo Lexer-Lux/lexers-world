@@ -171,7 +171,13 @@ function SectionCard({
         background: active ? "rgba(0, 240, 255, 0.05)" : "rgba(10, 15, 31, 0.28)",
       }}
     >
-      <h3 className="font-mono text-[11px] font-extrabold uppercase tracking-[0.18em]" style={{ color: active ? "var(--neon-cyan)" : "var(--copy-secondary)" }}>
+      <h3
+        className="font-mono text-[13px] font-black uppercase tracking-[0.16em]"
+        style={{
+          color: active ? "var(--neon-cyan)" : "var(--copy-secondary)",
+          textShadow: active ? "0 0 8px rgba(0, 240, 255, 0.18)" : "none",
+        }}
+      >
         {title}
       </h3>
       {children}
@@ -386,6 +392,10 @@ export default function DevDrawer({
                 {showTabHint ? "TAB" : ""}
               </span>
             </div>
+
+            <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.12em]" style={{ color: "var(--copy-muted)" }}>
+              Effects stack together. Toggle any combo.
+            </p>
           </div>
 
           <div className="grid h-[calc(100%-38px)] gap-1 overflow-y-auto px-1.5 py-1.5">
@@ -477,7 +487,7 @@ export default function DevDrawer({
             <NumberControl
               id="dev-crosshatch-threshold"
               label="Crosshatch threshold"
-              min={0.82}
+              min={0.55}
               max={0.98}
               step={0.005}
               value={globeSettings.crosshatchThreshold}
@@ -895,7 +905,11 @@ export default function DevDrawer({
             />
           </SectionCard>
 
-          <div className="mt-1 grid grid-cols-3 gap-1">
+          <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.12em]" style={{ color: "var(--copy-muted)" }}>
+            Reset buttons: globe / vfx / all
+          </p>
+
+          <div className="mt-0.5 grid grid-cols-3 gap-1">
             <ResetButton label="Reset Globe" onClick={() => onGlobeChange(DEFAULT_GLOBE_RUNTIME_SETTINGS)} />
             <ResetButton
               label="Reset VFX"

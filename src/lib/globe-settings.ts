@@ -41,7 +41,7 @@ export const DEFAULT_GLOBE_RUNTIME_SETTINGS: GlobeRuntimeSettings = {
   wireStrength: 1,
   hatchStrength: 1,
   crosshatchDensity: 1,
-  crosshatchThreshold: 0.92,
+  crosshatchThreshold: 0.8,
   showAtmosphere: true,
   atmosphereColor: "#4f72ff",
   atmosphereAltitude: 0.13,
