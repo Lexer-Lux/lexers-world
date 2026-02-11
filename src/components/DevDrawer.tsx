@@ -396,6 +396,9 @@ export default function DevDrawer({
             <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.12em]" style={{ color: "var(--copy-muted)" }}>
               Effects stack together. Toggle any combo.
             </p>
+            <p className="mt-0.5 font-mono text-[9px] tracking-[0.04em]" style={{ color: "var(--copy-muted)" }}>
+              Bottom buttons: Globe resets globe controls, VFX resets atmosphere/comic controls, All resets everything.
+            </p>
           </div>
 
           <div className="grid h-[calc(100%-38px)] gap-1 overflow-y-auto px-1.5 py-1.5">
@@ -904,10 +907,6 @@ export default function DevDrawer({
               onChange={(value) => onAestheticChange({ ...aestheticSettings, glitchSpeedSeconds: value })}
             />
           </SectionCard>
-
-          <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.12em]" style={{ color: "var(--copy-muted)" }}>
-            Reset buttons: globe / vfx / all
-          </p>
 
           <div className="mt-0.5 grid grid-cols-3 gap-1">
             <ResetButton label="Reset Globe" onClick={() => onGlobeChange(DEFAULT_GLOBE_RUNTIME_SETTINGS)} />

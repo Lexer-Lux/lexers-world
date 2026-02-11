@@ -854,11 +854,17 @@ uniform float uWireStrength;`
     const scene = globe.scene();
     scene.background = null;
 
-    const ambientLight = new AmbientLight(0xffffff, 0.18);
-    const sunLight = new DirectionalLight(0xffffff, 1.28);
+    const ambientIntensity = useStylizedShader ? 0.22 : 0.05;
+    const sunIntensity = useStylizedShader ? 1.12 : 1.58;
+
+    const ambientLight = new AmbientLight(0xffffff, ambientIntensity);
+    const sunLight = new DirectionalLight(0xffffff, sunIntensity);
+    const nightFill = new DirectionalLight(0x355d9f, useStylizedShader ? 0.1 : 0.04);
     sunLight.position.copy(SUN_DIRECTION.clone().multiplyScalar(300));
+    nightFill.position.copy(SUN_DIRECTION.clone().multiplyScalar(-280));
     scene.add(ambientLight);
     scene.add(sunLight);
+    scene.add(nightFill);
 
     globe.pointOfView({ lat: 35, lng: -40, altitude: 2.5 }, 0);
 
@@ -880,8 +886,9 @@ uniform float uWireStrength;`
       controls.removeEventListener("change", handleControlsChange);
       scene.remove(ambientLight);
       scene.remove(sunLight);
+      scene.remove(nightFill);
     };
-  }, [performanceProfile.maxPixelRatio]);
+  }, [performanceProfile.maxPixelRatio, useStylizedShader]);
 
   useEffect(() => {
     const controls = globeRef.current?.controls();
