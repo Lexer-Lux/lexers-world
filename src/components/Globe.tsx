@@ -22,6 +22,10 @@ const SUN_DIRECTION = new Vector3(0.84, 0.28, 0.46).normalize();
 const EARTH_TEXTURE_URL = "https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg";
 const COUNTRIES_GEOJSON_URL =
   "https://unpkg.com/three-globe/example/datasets/ne_110m_admin_0_countries.geojson";
+const ADMIN1_LINES_GEOJSON_URL =
+  "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_1_states_provinces_lines.geojson";
+const ADMIN2_COUNTIES_GEOJSON_URL =
+  "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_2_counties.geojson";
 
 type BoundaryTier = "country" | "admin1" | "admin2" | "hatch";
 
@@ -104,39 +108,139 @@ function getDetailStrength(lowPower: boolean): number {
   return lowPower ? 0.36 : 0.92;
 }
 
-function createBoundaryTier(gridStep: number, segmentStep: number, tier: BoundaryTier): BoundaryArc[] {
-  const arcs: BoundaryArc[] = [];
-
-  for (let lat = -67.5; lat <= 67.5; lat += gridStep) {
-    for (let lng = -180; lng < 180; lng += segmentStep) {
-      arcs.push({
-        startLat: Number(lat.toFixed(2)),
-        startLng: Number(lng.toFixed(2)),
-        endLat: Number(lat.toFixed(2)),
-        endLng: Number(Math.min(180, lng + segmentStep).toFixed(2)),
-        tier,
-      });
-    }
+function readLngLatPair(point: unknown): [number, number] | null {
+  if (!Array.isArray(point) || point.length < 2) {
+    return null;
   }
 
-  for (let lng = -180; lng < 180; lng += gridStep) {
-    for (let lat = -72; lat < 72; lat += segmentStep) {
-      arcs.push({
-        startLat: Number(lat.toFixed(2)),
-        startLng: Number(lng.toFixed(2)),
-        endLat: Number(Math.min(72, lat + segmentStep).toFixed(2)),
-        endLng: Number(lng.toFixed(2)),
-        tier,
-      });
+  const lng = Number(point[0]);
+  const lat = Number(point[1]);
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return null;
+  }
+
+  return [lng, lat];
+}
+
+function addLineArcsFromCoordinatePath(
+  path: unknown,
+  tier: BoundaryTier,
+  stride: number,
+  maxArcs: number,
+  output: BoundaryArc[]
+) {
+  if (!Array.isArray(path)) {
+    return;
+  }
+
+  const coordinates = path as unknown[];
+  if (coordinates.length < 2) {
+    return;
+  }
+
+  const step = Math.max(1, Math.round(stride));
+
+  for (let index = 0; index < coordinates.length - 1 && output.length < maxArcs; index += step) {
+    const start = readLngLatPair(coordinates[index]);
+    const end = readLngLatPair(coordinates[Math.min(index + step, coordinates.length - 1)]);
+
+    if (!start || !end) {
+      continue;
+    }
+
+    output.push({
+      startLat: start[1],
+      startLng: start[0],
+      endLat: end[1],
+      endLng: end[0],
+      tier,
+    });
+  }
+}
+
+function geoJsonFeaturesToBoundaryArcs(
+  features: GeoFeature[],
+  tier: BoundaryTier,
+  stride: number,
+  maxArcs: number
+): BoundaryArc[] {
+  const arcs: BoundaryArc[] = [];
+
+  for (const feature of features) {
+    if (arcs.length >= maxArcs) {
+      break;
+    }
+
+    const geometry = feature.geometry;
+    const type = geometry?.type;
+    const coordinates = geometry?.coordinates;
+
+    if (!type || !coordinates) {
+      continue;
+    }
+
+    if (type === "LineString") {
+      addLineArcsFromCoordinatePath(coordinates, tier, stride, maxArcs, arcs);
+      continue;
+    }
+
+    if (type === "MultiLineString") {
+      if (Array.isArray(coordinates)) {
+        for (const line of coordinates) {
+          if (arcs.length >= maxArcs) {
+            break;
+          }
+          addLineArcsFromCoordinatePath(line, tier, stride, maxArcs, arcs);
+        }
+      }
+      continue;
+    }
+
+    if (type === "Polygon") {
+      if (Array.isArray(coordinates)) {
+        for (const ring of coordinates) {
+          if (arcs.length >= maxArcs) {
+            break;
+          }
+          addLineArcsFromCoordinatePath(ring, tier, stride, maxArcs, arcs);
+        }
+      }
+      continue;
+    }
+
+    if (type === "MultiPolygon" && Array.isArray(coordinates)) {
+      for (const polygon of coordinates) {
+        if (!Array.isArray(polygon)) {
+          continue;
+        }
+
+        for (const ring of polygon) {
+          if (arcs.length >= maxArcs) {
+            break;
+          }
+          addLineArcsFromCoordinatePath(ring, tier, stride, maxArcs, arcs);
+        }
+
+        if (arcs.length >= maxArcs) {
+          break;
+        }
+      }
     }
   }
 
   return arcs;
 }
 
-const COUNTRY_BOUNDARY_ARCS = createBoundaryTier(45, 18, "country");
-const ADMIN1_BOUNDARY_ARCS = createBoundaryTier(22.5, 12, "admin1");
-const ADMIN2_BOUNDARY_ARCS = createBoundaryTier(11.25, 8, "admin2");
+async function fetchGeoJsonFeatures(url: string): Promise<GeoFeature[]> {
+  const response = await fetch(url, { cache: "force-cache" });
+  if (!response.ok) {
+    return [];
+  }
+
+  const payload = (await response.json()) as { features?: GeoFeature[] };
+  return Array.isArray(payload.features) ? payload.features : [];
+}
 
 function getBoundaryColor(warEnabled: boolean, paperEnabled: boolean, tier: BoundaryTier): string {
   if (tier === "hatch") {
@@ -499,7 +603,9 @@ export default function Globe({
   const onAltitudeChangeRef = useRef(onAltitudeChange);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [altitude, setAltitude] = useState(2.5);
-  const [countryPolygons, setCountryPolygons] = useState<GeoFeature[]>([]);
+  const [countryBoundaryArcs, setCountryBoundaryArcs] = useState<BoundaryArc[]>([]);
+  const [admin1BoundaryArcs, setAdmin1BoundaryArcs] = useState<BoundaryArc[]>([]);
+  const [admin2BoundaryArcs, setAdmin2BoundaryArcs] = useState<BoundaryArc[]>([]);
   const performanceProfile = useMemo(() => getPerformanceProfile(), []);
 
   const earthTexture = useMemo(() => {
@@ -634,29 +740,38 @@ uniform float uWireStrength;`
 
     const arcs: BoundaryArc[] = [];
 
-    if (showCountry) {
-      arcs.push(...COUNTRY_BOUNDARY_ARCS);
+    if (showCountry && countryBoundaryArcs.length > 0) {
+      arcs.push(...countryBoundaryArcs);
     }
 
-    if (showAdmin1) {
-      arcs.push(...ADMIN1_BOUNDARY_ARCS);
+    if (showAdmin1 && admin1BoundaryArcs.length > 0) {
+      arcs.push(...admin1BoundaryArcs);
     }
 
-    if (showAdmin2) {
-      arcs.push(...ADMIN2_BOUNDARY_ARCS);
+    if (showAdmin2 && admin2BoundaryArcs.length > 0) {
+      arcs.push(...admin2BoundaryArcs);
     }
 
     if (!useStylizedShader && settings.hatchStrength > 0.01) {
       const density = clamp(settings.crosshatchDensity, 0.4, 2.2);
-      const gridStep = clamp(26 / density, 8, 30);
-      const segmentStep = clamp(16 / density, 5, 20);
-      const hatchArcs = createBoundaryTier(gridStep, segmentStep, "hatch");
-      arcs.push(...hatchArcs);
+      const source = showAdmin2
+        ? admin2BoundaryArcs
+        : showAdmin1
+          ? admin1BoundaryArcs
+          : countryBoundaryArcs;
+      const stride = Math.max(1, Math.round(5 / density));
+
+      for (let index = 0; index < source.length; index += stride) {
+        arcs.push({ ...source[index], tier: "hatch" });
+      }
     }
 
     return arcs;
   }, [
     altitude,
+    admin1BoundaryArcs,
+    admin2BoundaryArcs,
+    countryBoundaryArcs,
     performanceProfile.lowPower,
     settings.crosshatchDensity,
     settings.hatchStrength,
@@ -691,27 +806,29 @@ uniform float uWireStrength;`
   useEffect(() => {
     let cancelled = false;
 
-    const loadCountryPolygons = async () => {
+    const loadAdministrativeBoundaries = async () => {
       try {
-        const response = await fetch(COUNTRIES_GEOJSON_URL, { cache: "force-cache" });
-        if (!response.ok) {
-          return;
-        }
+        const [countryFeatures, admin1Features, admin2Features] = await Promise.all([
+          fetchGeoJsonFeatures(COUNTRIES_GEOJSON_URL),
+          fetchGeoJsonFeatures(ADMIN1_LINES_GEOJSON_URL),
+          fetchGeoJsonFeatures(ADMIN2_COUNTIES_GEOJSON_URL),
+        ]);
 
-        const data = (await response.json()) as { features?: GeoFeature[] };
         if (cancelled) {
           return;
         }
 
-        if (Array.isArray(data.features)) {
-          setCountryPolygons(data.features);
-        }
+        setCountryBoundaryArcs(
+          geoJsonFeaturesToBoundaryArcs(countryFeatures, "country", 1, 18000)
+        );
+        setAdmin1BoundaryArcs(geoJsonFeaturesToBoundaryArcs(admin1Features, "admin1", 1, 22000));
+        setAdmin2BoundaryArcs(geoJsonFeaturesToBoundaryArcs(admin2Features, "admin2", 3, 28000));
       } catch {
-        // keep graceful fallback when country data is unavailable
+        // graceful fallback when remote boundary data is unavailable
       }
     };
 
-    loadCountryPolygons();
+    loadAdministrativeBoundaries();
 
     return () => {
       cancelled = true;
@@ -846,17 +963,6 @@ uniform float uWireStrength;`
       atmosphereColor={atmosphereColor}
       atmosphereAltitude={atmosphereAltitude}
       globeCurvatureResolution={performanceProfile.globeCurvatureResolution}
-      polygonsData={countryPolygons}
-      polygonCapColor={() => "rgba(0, 0, 0, 0)"}
-      polygonSideColor={() => "rgba(0, 0, 0, 0)"}
-      polygonStrokeColor={() =>
-        warEnabled
-          ? "rgba(122, 244, 187, 0.62)"
-          : paperEnabled
-            ? "rgba(140, 109, 76, 0.58)"
-            : "rgba(210, 233, 255, 0.6)"
-      }
-      polygonAltitude={0.003}
       arcsData={boundaryArcs}
       arcStartLat={(data) => (data as BoundaryArc).startLat}
       arcStartLng={(data) => (data as BoundaryArc).startLng}
