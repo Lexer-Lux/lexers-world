@@ -23,7 +23,7 @@ const EARTH_TEXTURE_URL = "https://unpkg.com/three-globe/example/img/earth-blue-
 const COUNTRIES_GEOJSON_URL =
   "https://unpkg.com/three-globe/example/datasets/ne_110m_admin_0_countries.geojson";
 
-type BoundaryTier = "country" | "admin1" | "admin2";
+type BoundaryTier = "country" | "admin1" | "admin2" | "hatch";
 
 interface BoundaryArc {
   startLat: number;
@@ -139,6 +139,18 @@ const ADMIN1_BOUNDARY_ARCS = createBoundaryTier(22.5, 12, "admin1");
 const ADMIN2_BOUNDARY_ARCS = createBoundaryTier(11.25, 8, "admin2");
 
 function getBoundaryColor(warEnabled: boolean, paperEnabled: boolean, tier: BoundaryTier): string {
+  if (tier === "hatch") {
+    if (warEnabled) {
+      return "rgba(106, 245, 194, 0.58)";
+    }
+
+    if (paperEnabled) {
+      return "rgba(136, 106, 76, 0.5)";
+    }
+
+    return "rgba(170, 206, 240, 0.44)";
+  }
+
   if (warEnabled && paperEnabled) {
     if (tier === "country") return "rgba(166, 232, 208, 0.9)";
     if (tier === "admin1") return "rgba(130, 213, 190, 0.75)";
@@ -481,6 +493,7 @@ export default function Globe({
   const settings = runtimeSettings ?? DEFAULT_GLOBE_RUNTIME_SETTINGS;
   const warEnabled = settings.enableWarGamesEffect;
   const paperEnabled = settings.enablePaperEffect;
+  const useStylizedShader = warEnabled || paperEnabled;
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
   const onLocationClickRef = useRef(onLocationClick);
   const onAltitudeChangeRef = useRef(onAltitudeChange);
@@ -515,6 +528,10 @@ export default function Globe({
   }, [onAltitudeChange]);
 
   const globeMaterial = useMemo(() => {
+    if (!useStylizedShader) {
+      return null;
+    }
+
     const detailStrength = getDetailStrength(performanceProfile.lowPower);
     const wireStrength = clamp(settings.wireStrength, 0, 1.6);
     const hatchStrength = clamp(settings.hatchStrength, 0, 1.6);
@@ -598,6 +615,7 @@ uniform float uWireStrength;`
   }, [
     warEnabled,
     paperEnabled,
+    useStylizedShader,
     earthTexture,
     performanceProfile.lowPower,
     settings,
@@ -628,8 +646,24 @@ uniform float uWireStrength;`
       arcs.push(...ADMIN2_BOUNDARY_ARCS);
     }
 
+    if (!useStylizedShader && settings.hatchStrength > 0.01) {
+      const density = clamp(settings.crosshatchDensity, 0.4, 2.2);
+      const gridStep = clamp(26 / density, 8, 30);
+      const segmentStep = clamp(16 / density, 5, 20);
+      const hatchArcs = createBoundaryTier(gridStep, segmentStep, "hatch");
+      arcs.push(...hatchArcs);
+    }
+
     return arcs;
-  }, [altitude, performanceProfile.lowPower, settings.showBoundaryTiers, settings.zoomThreshold]);
+  }, [
+    altitude,
+    performanceProfile.lowPower,
+    settings.crosshatchDensity,
+    settings.hatchStrength,
+    settings.showBoundaryTiers,
+    settings.zoomThreshold,
+    useStylizedShader,
+  ]);
 
   const atmosphereColor = useMemo(() => {
     const fallback = getAtmosphereColor(warEnabled, paperEnabled);
@@ -703,8 +737,8 @@ uniform float uWireStrength;`
     const scene = globe.scene();
     scene.background = null;
 
-    const ambientLight = new AmbientLight(0xffffff, 0.33);
-    const sunLight = new DirectionalLight(0xffffff, 1.08);
+    const ambientLight = new AmbientLight(0xffffff, 0.18);
+    const sunLight = new DirectionalLight(0xffffff, 1.28);
     sunLight.position.copy(SUN_DIRECTION.clone().multiplyScalar(300));
     scene.add(ambientLight);
     scene.add(sunLight);
@@ -806,7 +840,7 @@ uniform float uWireStrength;`
       backgroundColor="rgba(0,0,0,0)"
       backgroundImageUrl={null}
       globeImageUrl={EARTH_TEXTURE_URL}
-      globeMaterial={globeMaterial}
+      globeMaterial={useStylizedShader ? globeMaterial ?? undefined : undefined}
       showGraticules={!warEnabled && !paperEnabled}
       showAtmosphere={settings.showAtmosphere}
       atmosphereColor={atmosphereColor}
@@ -829,28 +863,39 @@ uniform float uWireStrength;`
       arcEndLat={(data) => (data as BoundaryArc).endLat}
       arcEndLng={(data) => (data as BoundaryArc).endLng}
       arcColor={(data: object) =>
-        scaleRgbaAlpha(getBoundaryColor(warEnabled, paperEnabled, (data as BoundaryArc).tier), boundaryOpacity)
+        scaleRgbaAlpha(
+          getBoundaryColor(warEnabled, paperEnabled, (data as BoundaryArc).tier),
+          boundaryOpacity *
+            ((data as BoundaryArc).tier === "hatch"
+              ? clamp(settings.hatchStrength, 0, 1.6) *
+                clamp((1 - settings.crosshatchThreshold) / 0.45, 0, 1)
+              : clamp(0.35 + settings.wireStrength * 0.65, 0.35, 1.6))
+        )
       }
       arcAltitude={(data: object) => {
         const tier = (data as BoundaryArc).tier;
+        if (tier === "hatch") return 0.002;
         if (tier === "country") return 0.016;
         if (tier === "admin1") return 0.012;
         return 0.008;
       }}
       arcStroke={(data: object) => {
         const tier = (data as BoundaryArc).tier;
+        if (tier === "hatch") return 0.22;
         if (tier === "country") return 0.98;
         if (tier === "admin1") return 0.64;
         return 0.36;
       }}
       arcDashLength={(data: object) => {
         const tier = (data as BoundaryArc).tier;
+        if (tier === "hatch") return 0.2;
         if (tier === "country") return 1;
         if (tier === "admin1") return 0.35;
         return 0.1;
       }}
       arcDashGap={(data: object) => {
         const tier = (data as BoundaryArc).tier;
+        if (tier === "hatch") return 0.18;
         if (tier === "country") return 0;
         if (tier === "admin1") return 0.35;
         return 0.22;
