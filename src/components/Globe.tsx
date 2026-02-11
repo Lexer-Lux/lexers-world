@@ -21,7 +21,7 @@ import type { KeyLocation, LexerEvent } from "@/lib/types";
 const SUN_DIRECTION = new Vector3(0.84, 0.28, 0.46).normalize();
 const EARTH_TEXTURE_URL = "https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg";
 const COUNTRIES_GEOJSON_URL =
-  "https://unpkg.com/three-globe/example/datasets/ne_110m_admin_0_countries.geojson";
+  "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson";
 const ADMIN1_LINES_GEOJSON_URL =
   "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_1_states_provinces_lines.geojson";
 const ADMIN2_COUNTIES_GEOJSON_URL =
@@ -734,7 +734,7 @@ uniform float uWireStrength;`
       return [];
     }
 
-    const showCountry = altitude <= 2.95;
+    const showCountry = true;
     const showAdmin1 = altitude <= Math.max(2.2, settings.zoomThreshold + 0.5);
     const showAdmin2 = !performanceProfile.lowPower && altitude <= settings.zoomThreshold + 0.1;
 
