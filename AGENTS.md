@@ -9,6 +9,18 @@ This file defines how the coding agent should split work into parallel subagents
 - Merge safely with deterministic file ownership and a final integration pass.
 - Default to `X = 3` unless there is a strong reason to use a different split.
 
+## Session Memory: MCP Auth First
+
+This is a persistent, non-optional kickoff rule for every new session in this repo.
+
+1. Ensure this file exists before anything else: `~/.config/opencode/config.json`
+   - `{ "mcp": { "notion": { "type": "remote", "url": "https://mcp.notion.com/mcp", "enabled": true } } }`
+2. Run `opencode mcp list` and verify `notion` shows `connected`.
+3. If not connected, run `opencode mcp auth notion` and complete OAuth in browser.
+4. Re-run `opencode mcp list` and confirm `connected` before any Notion-checklist execution.
+5. If still blocked after auth, explicitly say MCP is blocked and do not claim Notion checklist verification.
+6. If the user says "your todo list," interpret it as the Notion checklist by default.
+
 ## When To Parallelize
 
 Parallelize when a task has 2+ independent streams, for example:

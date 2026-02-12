@@ -1,46 +1,39 @@
 "use client";
 
+import { useState } from "react";
+
 interface RecurringBadgeProps {
   size?: number;
 }
 
-/**
- * Cycle arrow icon that on hover reveals "RECURRING!" lettered along the arc.
- * The arrow line fades segment by segment, replaced by each letter.
- * Animation loops on hover.
- */
 export default function RecurringBadge({ size = 28 }: RecurringBadgeProps) {
-  // The circular arc path — goes ~300 degrees around
-  // Center at 50,50, radius 35, from ~30deg to ~330deg (clockwise)
-  const cx = 50, cy = 50, r = 35;
+  const [isActive, setIsActive] = useState(false);
+
+  const cx = 50;
+  const cy = 50;
+  const r = 35;
   const letters = "RECURRING!".split("");
   const totalLetters = letters.length;
   const loopDuration = 1.6;
-
-  // Arc spans from startAngle to endAngle (degrees, 0 = right, clockwise)
-  const startAngle = -120; // top-left
-  const endAngle = 180;   // bottom-left (300 degree arc)
+  const startAngle = -120;
+  const endAngle = 180;
   const arcSpan = endAngle - startAngle;
 
-  // Position each letter along the arc
   const letterPositions = letters.map((letter, i) => {
     const frac = i / (totalLetters - 1);
     const angleDeg = startAngle + frac * arcSpan;
     const angleRad = (angleDeg * Math.PI) / 180;
     const x = cx + r * Math.cos(angleRad);
     const y = cy + r * Math.sin(angleRad);
-    // Rotation: tangent to circle + 90deg so letters read outward
-    const rotation = angleDeg + 90;
     return {
       letter,
       x,
       y,
-      rotation,
+      rotation: angleDeg + 90,
       delay: (i / totalLetters) * loopDuration,
     };
   });
 
-  // SVG arc path for the arrow line (same arc as letters)
   const startRad = (startAngle * Math.PI) / 180;
   const endRad = (endAngle * Math.PI) / 180;
   const sx = cx + r * Math.cos(startRad);
@@ -50,7 +43,6 @@ export default function RecurringBadge({ size = 28 }: RecurringBadgeProps) {
   const largeArc = arcSpan > 180 ? 1 : 0;
   const arcPath = `M ${sx} ${sy} A ${r} ${r} 0 ${largeArc} 1 ${ex} ${ey}`;
 
-  // Arrow tip at the end of the arc
   const tipAngleRad = endRad;
   const tipLen = 8;
   const tipSpread = 0.4;
@@ -60,17 +52,17 @@ export default function RecurringBadge({ size = 28 }: RecurringBadgeProps) {
   const ay2 = ey + tipLen * Math.sin(tipAngleRad - Math.PI - tipSpread);
 
   return (
-    <div
+    <button
+      type="button"
       className="inline-block cursor-default"
       style={{ width: size, height: size }}
+      onMouseEnter={() => setIsActive(true)}
+      onMouseLeave={() => setIsActive(false)}
+      onFocus={() => setIsActive(true)}
+      onBlur={() => setIsActive(false)}
+      aria-label="Recurring event"
     >
-      <svg
-        viewBox="0 0 100 100"
-        width={size}
-        height={size}
-        className="overflow-visible"
-      >
-        {/* Arrow arc line — fades out on hover */}
+      <svg viewBox="0 0 100 100" width={size} height={size} className="overflow-visible">
         <path
           d={arcPath}
           pathLength={1}
@@ -81,10 +73,11 @@ export default function RecurringBadge({ size = 28 }: RecurringBadgeProps) {
           style={{
             strokeDasharray: 1,
             strokeDashoffset: 0,
-            animation: `recArcErase ${loopDuration}s steps(${totalLetters}, end) infinite`,
+            animation: isActive ? `recArcErase ${loopDuration}s steps(${totalLetters}, end) infinite` : "none",
+            opacity: 1,
           }}
         />
-        {/* Arrow tip — fades out on hover */}
+
         <path
           d={`M ${ax1} ${ay1} L ${ex} ${ey} L ${ax2} ${ay2}`}
           fill="none"
@@ -93,11 +86,11 @@ export default function RecurringBadge({ size = 28 }: RecurringBadgeProps) {
           strokeLinecap="round"
           strokeLinejoin="round"
           style={{
-            animation: `recTipFade ${loopDuration}s linear infinite`,
+            animation: isActive ? `recTipFade ${loopDuration}s linear infinite` : "none",
+            opacity: 1,
           }}
         />
 
-        {/* Letters along the arc — fade in on hover */}
         {letterPositions.map(({ letter, x, y, rotation, delay }, i) => (
           <text
             key={i}
@@ -110,9 +103,9 @@ export default function RecurringBadge({ size = 28 }: RecurringBadgeProps) {
             fontFamily="monospace"
             fontWeight="900"
             fontSize="13"
-            className="opacity-0"
             style={{
-              animation: `recLetterReveal ${loopDuration}s linear infinite`,
+              opacity: isActive ? 0 : 0,
+              animation: isActive ? `recLetterReveal ${loopDuration}s linear infinite` : "none",
               animationDelay: `${delay}s`,
               filter: "drop-shadow(0 0 3px rgba(176, 38, 255, 0.6))",
             }}
@@ -121,6 +114,6 @@ export default function RecurringBadge({ size = 28 }: RecurringBadgeProps) {
           </text>
         ))}
       </svg>
-    </div>
+    </button>
   );
 }

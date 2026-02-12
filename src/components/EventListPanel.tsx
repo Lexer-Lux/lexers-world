@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { LexerEvent } from "@/lib/types";
 import { formatCost } from "@/lib/data";
 import { LEXER_TWITTER_URL } from "@/lib/app-config";
@@ -22,6 +23,29 @@ export default function EventListPanel({
   onClose,
   twitterUrl = LEXER_TWITTER_URL,
 }: EventListPanelProps) {
+  const [layoutMode, setLayoutMode] = useState<"top" | "right">("top");
+
+  useEffect(() => {
+    const updateLayoutMode = () => {
+      setLayoutMode(window.innerWidth >= window.innerHeight ? "top" : "right");
+    };
+
+    updateLayoutMode();
+    window.addEventListener("resize", updateLayoutMode);
+    return () => window.removeEventListener("resize", updateLayoutMode);
+  }, []);
+
+  const panelClassName = useMemo(() => {
+    if (layoutMode === "top") {
+      return "panel-shell benday-overlay scanline motion-lines absolute inset-x-0 top-0 h-[44vh] max-h-[420px] rounded-b-2xl pointer-events-auto overflow-hidden animate-[slideDown_0.3s_ease-out]";
+    }
+
+    return "panel-shell benday-overlay scanline motion-lines absolute inset-y-0 right-0 h-full w-[min(92vw,360px)] rounded-l-2xl pointer-events-auto overflow-hidden animate-[slideIn_0.3s_ease-out]";
+  }, [layoutMode]);
+
+  const eventListClassName =
+    layoutMode === "top" ? "flex h-full flex-row gap-3 overflow-x-auto pb-1" : "flex flex-col gap-3 pb-1";
+
   return (
     <div className="fixed inset-0 z-20 pointer-events-none">
       {/* Backdrop — click to close */}
@@ -33,11 +57,9 @@ export default function EventListPanel({
 
       {/* Panel */}
       <div
-        className="panel-shell benday-overlay scanline motion-lines absolute inset-y-0 right-0 h-full w-[min(92vw,360px)]
-          rounded-l-2xl pointer-events-auto overflow-hidden animate-[slideIn_0.3s_ease-out]
-          md:inset-x-0 md:bottom-0 md:top-auto md:h-[42vh] md:w-full md:max-h-[48vh] md:rounded-l-none md:rounded-t-2xl md:animate-[slideUp_0.32s_cubic-bezier(0.16,1,0.3,1)]"
+        className={panelClassName}
         style={{
-          borderRight: "1px solid var(--border-purple)",
+          borderRight: layoutMode === "right" ? "1px solid var(--border-purple)" : "none",
           borderTop: "1px solid var(--border-purple)",
         }}
       >
@@ -92,7 +114,7 @@ export default function EventListPanel({
                 !
               </p>
             ) : (
-              <div className="flex flex-col gap-3 pb-1">
+              <div className={eventListClassName}>
                 {events.map((event, index) => (
                   <button
                     key={event.id}
@@ -104,6 +126,7 @@ export default function EventListPanel({
                       border: "1px solid rgba(255, 45, 117, 0.2)",
                       animation: `staggerUp 0.3s ease-out ${index * 0.06}s both`,
                       transition: "border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease",
+                      minWidth: layoutMode === "top" ? "min(84vw, 320px)" : "unset",
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.borderColor = "rgba(255, 45, 117, 0.45)";

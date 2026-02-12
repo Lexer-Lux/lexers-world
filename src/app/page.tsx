@@ -222,7 +222,6 @@ export default function Home() {
     return getEventsForLocation(selectedLocation, events);
   }, [events, selectedLocation]);
 
-  const isWarGamesMode = runtimeSettings.enableWarGamesEffect;
   const isPaperMode = runtimeSettings.enablePaperEffect;
 
   const lockDetailMessage =
@@ -258,22 +257,14 @@ export default function Home() {
   );
 
   const nebulaBackground = useMemo(() => {
-    if (isWarGamesMode) {
-      return "radial-gradient(circle at 24% 22%, rgba(83, 255, 178, 0.28) 0%, rgba(83, 255, 178, 0) 34%), radial-gradient(circle at 76% 74%, rgba(27, 208, 133, 0.22) 0%, rgba(27, 208, 133, 0) 42%), radial-gradient(circle at 50% 12%, rgba(152, 255, 207, 0.18) 0%, rgba(152, 255, 207, 0) 45%)";
-    }
-
     if (isPaperMode) {
       return "radial-gradient(circle at 24% 22%, rgba(215, 170, 123, 0.24) 0%, rgba(215, 170, 123, 0) 34%), radial-gradient(circle at 76% 74%, rgba(173, 111, 79, 0.2) 0%, rgba(173, 111, 79, 0) 42%), radial-gradient(circle at 50% 12%, rgba(145, 119, 81, 0.16) 0%, rgba(145, 119, 81, 0) 45%)";
     }
 
     return "radial-gradient(circle at 24% 22%, rgba(0, 240, 255, 0.36) 0%, rgba(0, 240, 255, 0) 34%), radial-gradient(circle at 76% 74%, rgba(255, 45, 117, 0.3) 0%, rgba(255, 45, 117, 0) 42%), radial-gradient(circle at 50% 12%, rgba(176, 38, 255, 0.25) 0%, rgba(176, 38, 255, 0) 45%)";
-  }, [isPaperMode, isWarGamesMode]);
+  }, [isPaperMode]);
 
-  const gridLineColor = isWarGamesMode
-    ? "95, 255, 187"
-    : isPaperMode
-      ? "143, 113, 76"
-      : "88, 158, 255";
+  const gridLineColor = isPaperMode ? "143, 113, 76" : "88, 158, 255";
 
   const gridOverlayBackground = useMemo(
     () =>
@@ -282,16 +273,12 @@ export default function Home() {
   );
 
   const horizonBackground = useMemo(() => {
-    if (isWarGamesMode) {
-      return "linear-gradient(180deg, rgba(3, 10, 8, 0) 0%, rgba(4, 15, 11, 0.72) 46%, rgba(2, 9, 7, 0.96) 100%)";
-    }
-
     if (isPaperMode) {
       return "linear-gradient(180deg, rgba(24, 18, 12, 0) 0%, rgba(28, 20, 12, 0.7) 46%, rgba(20, 14, 9, 0.94) 100%)";
     }
 
     return "linear-gradient(180deg, rgba(6, 9, 23, 0) 0%, rgba(5, 8, 19, 0.72) 46%, rgba(3, 4, 12, 0.96) 100%)";
-  }, [isPaperMode, isWarGamesMode]);
+  }, [isPaperMode]);
 
   const handleLocationClick = (locationName: string) => {
     setSelectedLocation(locationName);

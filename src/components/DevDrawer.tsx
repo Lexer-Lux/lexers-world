@@ -27,6 +27,32 @@ function decimalPlaces(step: number): number {
   return Math.min(4, decimals.length);
 }
 
+function HintDot({ help }: { help: string }) {
+  return (
+    <span
+      title={help}
+      className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border font-mono text-[8px]"
+      style={{
+        color: "var(--neon-cyan)",
+        borderColor: "rgba(0, 240, 255, 0.36)",
+        background: "rgba(0, 240, 255, 0.08)",
+      }}
+      aria-label={help}
+    >
+      ?
+    </span>
+  );
+}
+
+function LabelRow({ label, help }: { label: string; help?: string }) {
+  return (
+    <span className="flex items-center gap-1 font-mono text-[9px] uppercase tracking-[0.16em]" style={{ color: "var(--copy-secondary)" }}>
+      {label}
+      {help && <HintDot help={help} />}
+    </span>
+  );
+}
+
 function NumberControl({
   id,
   label,
@@ -34,6 +60,7 @@ function NumberControl({
   max,
   step,
   value,
+  help,
   onChange,
 }: {
   id: string;
@@ -42,15 +69,14 @@ function NumberControl({
   max: number;
   step: number;
   value: number;
+  help?: string;
   onChange: (value: number) => void;
 }) {
   const precision = decimalPlaces(step);
 
   return (
     <label htmlFor={id} className="grid gap-0.5">
-      <span className="font-mono text-[9px] uppercase tracking-[0.16em]" style={{ color: "var(--copy-secondary)" }}>
-        {label}
-      </span>
+      <LabelRow label={label} help={help} />
       <div className="grid grid-cols-[1fr_auto] items-center gap-1.5">
         <input
           id={id}
@@ -76,7 +102,7 @@ function NumberControl({
 
             onChange(Math.min(max, Math.max(min, nextValue)));
           }}
-          className="w-[64px] rounded border bg-black/30 px-1 py-0.5 text-right font-mono text-[9px]"
+          className="w-[72px] rounded border bg-black/30 px-1 py-0.5 text-right font-mono text-[9px]"
           style={{
             color: "var(--copy-primary)",
             borderColor: "rgba(130, 166, 255, 0.38)",
@@ -91,18 +117,18 @@ function ColorControl({
   id,
   label,
   value,
+  help,
   onChange,
 }: {
   id: string;
   label: string;
   value: string;
+  help?: string;
   onChange: (value: string) => void;
 }) {
   return (
     <label htmlFor={id} className="grid gap-0.5">
-      <span className="font-mono text-[9px] uppercase tracking-[0.16em]" style={{ color: "var(--copy-secondary)" }}>
-        {label}
-      </span>
+      <LabelRow label={label} help={help} />
       <div className="grid grid-cols-[auto_1fr] items-center gap-1.5">
         <input
           id={id}
@@ -131,18 +157,18 @@ function ToggleControl({
   id,
   label,
   checked,
+  help,
   onChange,
 }: {
   id: string;
   label: string;
   checked: boolean;
+  help?: string;
   onChange: (checked: boolean) => void;
 }) {
   return (
     <label htmlFor={id} className="flex items-center justify-between gap-2">
-      <span className="font-mono text-[9px] uppercase tracking-[0.16em]" style={{ color: "var(--copy-secondary)" }}>
-        {label}
-      </span>
+      <LabelRow label={label} help={help} />
       <input
         id={id}
         type="checkbox"
@@ -312,16 +338,13 @@ export default function DevDrawer({
     };
   }, [open]);
 
-  const wrapperClassName = useMemo(
-    () => {
-      if (isMobile) {
+  const wrapperClassName = useMemo(() => {
+    if (isMobile) {
       return `fixed inset-x-0 bottom-0 z-50 h-[50vh] transition-transform duration-300 ${open ? "translate-y-0" : "translate-y-full"}`;
-      }
+    }
 
-      return `fixed left-0 top-0 z-50 h-screen w-[min(92vw,420px)] transition-transform duration-300 ${open ? "translate-x-0" : "-translate-x-full"}`;
-    },
-    [isMobile, open]
-  );
+    return `fixed left-0 top-0 z-50 h-screen w-[min(92vw,420px)] transition-transform duration-300 ${open ? "translate-x-0" : "-translate-x-full"}`;
+  }, [isMobile, open]);
 
   const openerButtonClassName = isMobile
     ? "fixed bottom-4 left-3 z-[52] rounded-md border px-2 py-1"
@@ -352,7 +375,7 @@ export default function DevDrawer({
           style={{
             borderColor: "var(--border-cyan)",
             borderRadius: isMobile ? "16px 16px 0 0" : "0 12px 12px 0",
-            background: "rgba(8, 11, 24, 0.72)",
+            background: "rgba(8, 11, 24, 0.66)",
             backdropFilter: "blur(10px)",
           }}
         >
@@ -368,7 +391,7 @@ export default function DevDrawer({
             onClick={() => setOpen(false)}
             aria-label="Close dev drawer"
           >
-            <span className="font-mono text-xs">›</span>
+            <span className="font-mono text-xs">&rsaquo;</span>
           </button>
 
           <button
@@ -397,533 +420,633 @@ export default function DevDrawer({
               Effects stack together. Toggle any combo.
             </p>
             <p className="mt-0.5 font-mono text-[9px] tracking-[0.04em]" style={{ color: "var(--copy-muted)" }}>
-              Bottom buttons: Globe resets globe controls, VFX resets atmosphere/comic controls, All resets everything.
+              Legacy top mode buttons are gone. Footer buttons reset Globe, VFX, or All.
             </p>
           </div>
 
           <div className="grid h-[calc(100%-38px)] gap-1 overflow-y-auto px-1.5 py-1.5">
             <SectionCard title="Globe Core" active>
-            <ToggleControl
-              id="dev-auto-rotate"
-              label="Auto rotate"
-              checked={globeSettings.autoRotate}
-              onChange={(value) => onGlobeChange({ ...globeSettings, autoRotate: value })}
-            />
+              <ToggleControl
+                id="dev-auto-rotate"
+                label="Auto rotate"
+                checked={globeSettings.autoRotate}
+                help="When on, globe spins while idle."
+                onChange={(value) => onGlobeChange({ ...globeSettings, autoRotate: value })}
+              />
 
-            <NumberControl
-              id="dev-auto-rotate-speed"
-              label="Idle spin speed"
-              min={0}
-              max={1.2}
-              step={0.01}
-              value={globeSettings.autoRotateSpeed}
-              onChange={(value) => onGlobeChange({ ...globeSettings, autoRotateSpeed: value })}
-            />
+              <NumberControl
+                id="dev-auto-rotate-speed"
+                label="Idle spin speed"
+                min={0}
+                max={3}
+                step={0.01}
+                value={globeSettings.autoRotateSpeed}
+                help="Higher values spin faster."
+                onChange={(value) => onGlobeChange({ ...globeSettings, autoRotateSpeed: value })}
+              />
 
-            <NumberControl
-              id="dev-drag-rotate-speed"
-              label="Drag rotate speed"
-              min={0.2}
-              max={2.4}
-              step={0.05}
-              value={globeSettings.dragRotateSpeed}
-              onChange={(value) => onGlobeChange({ ...globeSettings, dragRotateSpeed: value })}
-            />
+              <NumberControl
+                id="dev-drag-rotate-speed"
+                label="Drag rotate speed"
+                min={0.1}
+                max={4}
+                step={0.01}
+                value={globeSettings.dragRotateSpeed}
+                help="How quickly drag input rotates the globe."
+                onChange={(value) => onGlobeChange({ ...globeSettings, dragRotateSpeed: value })}
+              />
 
-            <ToggleControl
-              id="dev-use-inertia"
-              label="Drag inertia"
-              checked={globeSettings.useInertia}
-              onChange={(value) => onGlobeChange({ ...globeSettings, useInertia: value })}
-            />
+              <ToggleControl
+                id="dev-use-inertia"
+                label="Drag inertia"
+                checked={globeSettings.useInertia}
+                help="Applies momentum after drag release."
+                onChange={(value) => onGlobeChange({ ...globeSettings, useInertia: value })}
+              />
 
-            <NumberControl
-              id="dev-inertia-damping"
-              label="Inertia damping"
-              min={0.02}
-              max={0.35}
-              step={0.01}
-              value={globeSettings.inertiaDamping}
-              onChange={(value) => onGlobeChange({ ...globeSettings, inertiaDamping: value })}
-            />
+              <NumberControl
+                id="dev-inertia-damping"
+                label="Inertia damping"
+                min={0.01}
+                max={0.9}
+                step={0.01}
+                value={globeSettings.inertiaDamping}
+                help="Lower values coast longer; higher values stop faster."
+                onChange={(value) => onGlobeChange({ ...globeSettings, inertiaDamping: value })}
+              />
 
-            <NumberControl
-              id="dev-zoom-threshold"
-              label="Zoom threshold"
-              min={1.2}
-              max={2.8}
-              step={0.05}
-              value={globeSettings.zoomThreshold}
-              onChange={(value) => onGlobeChange({ ...globeSettings, zoomThreshold: value })}
-            />
+              <NumberControl
+                id="dev-zoom-threshold"
+                label="Zoom threshold"
+                min={0.7}
+                max={5.5}
+                step={0.01}
+                value={globeSettings.zoomThreshold}
+                help="Altitude where city stars switch to event dots."
+                onChange={(value) => onGlobeChange({ ...globeSettings, zoomThreshold: value })}
+              />
 
-            <NumberControl
-              id="dev-wire-strength"
-              label="Wire strength"
-              min={0}
-              max={1.6}
-              step={0.05}
-              value={globeSettings.wireStrength}
-              onChange={(value) => onGlobeChange({ ...globeSettings, wireStrength: value })}
-            />
+              <NumberControl
+                id="dev-marker-scale"
+                label="Marker scale"
+                min={0.35}
+                max={3.2}
+                step={0.01}
+                value={globeSettings.markerScale}
+                help="Scales city star markers and labels."
+                onChange={(value) => onGlobeChange({ ...globeSettings, markerScale: value })}
+              />
 
-            <NumberControl
-              id="dev-hatch-strength"
-              label="Hatch strength"
-              min={0}
-              max={1.6}
-              step={0.05}
-              value={globeSettings.hatchStrength}
-              onChange={(value) => onGlobeChange({ ...globeSettings, hatchStrength: value })}
-            />
+              <NumberControl
+                id="dev-point-radius"
+                label="Event dot size"
+                min={0.05}
+                max={2.4}
+                step={0.01}
+                value={globeSettings.pointRadius}
+                help="Radius of event points when zoomed in."
+                onChange={(value) => onGlobeChange({ ...globeSettings, pointRadius: value })}
+              />
 
-            <NumberControl
-              id="dev-crosshatch-density"
-              label="Crosshatch density"
-              min={0.4}
-              max={2.2}
-              step={0.05}
-              value={globeSettings.crosshatchDensity}
-              onChange={(value) => onGlobeChange({ ...globeSettings, crosshatchDensity: value })}
-            />
+              <NumberControl
+                id="dev-point-altitude"
+                label="Event dot lift"
+                min={0}
+                max={0.12}
+                step={0.001}
+                value={globeSettings.pointAltitude}
+                help="How far event points float above the globe."
+                onChange={(value) => onGlobeChange({ ...globeSettings, pointAltitude: value })}
+              />
+            </SectionCard>
 
-            <NumberControl
-              id="dev-crosshatch-threshold"
-              label="Crosshatch threshold"
-              min={0.55}
-              max={0.98}
-              step={0.005}
-              value={globeSettings.crosshatchThreshold}
-              onChange={(value) => onGlobeChange({ ...globeSettings, crosshatchThreshold: value })}
-            />
+            <SectionCard title="Crosshatch + Day/Night" active>
+              <NumberControl
+                id="dev-wire-strength"
+                label="Wire strength"
+                min={0}
+                max={3}
+                step={0.01}
+                value={globeSettings.wireStrength}
+                help="Strength of longitude/latitude line tinting."
+                onChange={(value) => onGlobeChange({ ...globeSettings, wireStrength: value })}
+              />
 
-            <ToggleControl
-              id="dev-boundary-tiers"
-              label="Boundary tiers"
-              checked={globeSettings.showBoundaryTiers}
-              onChange={(value) => onGlobeChange({ ...globeSettings, showBoundaryTiers: value })}
-            />
+              <NumberControl
+                id="dev-hatch-strength"
+                label="Hatch strength"
+                min={0}
+                max={3}
+                step={0.01}
+                value={globeSettings.hatchStrength}
+                help="How dark crosshatch shadows appear on the night side."
+                onChange={(value) => onGlobeChange({ ...globeSettings, hatchStrength: value })}
+              />
 
-            <NumberControl
-              id="dev-boundary-opacity"
-              label="Boundary opacity"
-              min={0}
-              max={1.6}
-              step={0.05}
-              value={globeSettings.boundaryOpacity}
-              onChange={(value) => onGlobeChange({ ...globeSettings, boundaryOpacity: value })}
-            />
+              <NumberControl
+                id="dev-crosshatch-density"
+                label="Crosshatch density"
+                min={0.1}
+                max={6}
+                step={0.01}
+                value={globeSettings.crosshatchDensity}
+                help="Pattern frequency of hatch strokes."
+                onChange={(value) => onGlobeChange({ ...globeSettings, crosshatchDensity: value })}
+              />
 
-            <ToggleControl
-              id="dev-curved-title"
-              label="Curved title"
-              checked={globeSettings.showCurvedTitle}
-              onChange={(value) => onGlobeChange({ ...globeSettings, showCurvedTitle: value })}
-            />
-          </SectionCard>
+              <NumberControl
+                id="dev-crosshatch-threshold"
+                label="Crosshatch threshold"
+                min={0.2}
+                max={0.995}
+                step={0.001}
+                value={globeSettings.crosshatchThreshold}
+                help="Lower values fill more hatch strokes; higher values keep fewer."
+                onChange={(value) => onGlobeChange({ ...globeSettings, crosshatchThreshold: value })}
+              />
+            </SectionCard>
 
-          <SectionCard title="Atmosphere + Markers" active>
-            <ToggleControl
-              id="dev-show-atmosphere"
-              label="Atmosphere"
-              checked={globeSettings.showAtmosphere}
-              onChange={(value) => onGlobeChange({ ...globeSettings, showAtmosphere: value })}
-            />
+            <SectionCard title="INT'L BORDERS" active={globeSettings.showInternationalBorders}>
+              <ToggleControl
+                id="dev-show-international-borders"
+                label="Enabled"
+                checked={globeSettings.showInternationalBorders}
+                help="Show country outlines."
+                onChange={(value) => onGlobeChange({ ...globeSettings, showInternationalBorders: value })}
+              />
 
-            <ColorControl
-              id="dev-atmosphere-color"
-              label="Atmosphere color"
-              value={globeSettings.atmosphereColor}
-              onChange={(value) => onGlobeChange({ ...globeSettings, atmosphereColor: value })}
-            />
+              <NumberControl
+                id="dev-international-border-thickness"
+                label="Line thickness"
+                min={0.2}
+                max={2.5}
+                step={0.01}
+                value={globeSettings.internationalBorderThickness}
+                help="Stroke width for international borders."
+                onChange={(value) => onGlobeChange({ ...globeSettings, internationalBorderThickness: value })}
+              />
 
-            <NumberControl
-              id="dev-atmosphere-altitude"
-              label="Atmosphere altitude"
-              min={0.03}
-              max={0.28}
-              step={0.01}
-              value={globeSettings.atmosphereAltitude}
-              onChange={(value) => onGlobeChange({ ...globeSettings, atmosphereAltitude: value })}
-            />
+              <NumberControl
+                id="dev-boundary-opacity"
+                label="Opacity"
+                min={0}
+                max={2.4}
+                step={0.01}
+                value={globeSettings.boundaryOpacity}
+                help="Global alpha multiplier for all boundary layers."
+                onChange={(value) => onGlobeChange({ ...globeSettings, boundaryOpacity: value })}
+              />
+            </SectionCard>
 
-            <NumberControl
-              id="dev-marker-scale"
-              label="Marker scale"
-              min={0.6}
-              max={2}
-              step={0.05}
-              value={globeSettings.markerScale}
-              onChange={(value) => onGlobeChange({ ...globeSettings, markerScale: value })}
-            />
+            <SectionCard title="1ST-LEVEL DIVISIONS" active={globeSettings.showAdmin1Divisions}>
+              <ToggleControl
+                id="dev-show-admin1"
+                label="Enabled"
+                checked={globeSettings.showAdmin1Divisions}
+                help="Show first-level admin boundaries."
+                onChange={(value) => onGlobeChange({ ...globeSettings, showAdmin1Divisions: value })}
+              />
 
-            <NumberControl
-              id="dev-point-radius"
-              label="Event dot size"
-              min={0.12}
-              max={1.2}
-              step={0.02}
-              value={globeSettings.pointRadius}
-              onChange={(value) => onGlobeChange({ ...globeSettings, pointRadius: value })}
-            />
+              <NumberControl
+                id="dev-admin1-thickness"
+                label="Line thickness"
+                min={0.1}
+                max={2}
+                step={0.01}
+                value={globeSettings.admin1Thickness}
+                help="Stroke width for first-level divisions."
+                onChange={(value) => onGlobeChange({ ...globeSettings, admin1Thickness: value })}
+              />
 
-            <NumberControl
-              id="dev-point-altitude"
-              label="Event dot lift"
-              min={0}
-              max={0.05}
-              step={0.002}
-              value={globeSettings.pointAltitude}
-              onChange={(value) => onGlobeChange({ ...globeSettings, pointAltitude: value })}
-            />
-          </SectionCard>
+              <NumberControl
+                id="dev-admin1-dash-length"
+                label="Dash length"
+                min={0.05}
+                max={0.95}
+                step={0.01}
+                value={globeSettings.admin1DashLength}
+                help="Visible dash segment size."
+                onChange={(value) => onGlobeChange({ ...globeSettings, admin1DashLength: value })}
+              />
 
-          <SectionCard title="WarGames Values" active={globeSettings.enableWarGamesEffect}>
-            <ToggleControl
-              id="dev-war-enable"
-              label="Enable WarGames"
-              checked={globeSettings.enableWarGamesEffect}
-              onChange={(value) => onGlobeChange({ ...globeSettings, enableWarGamesEffect: value })}
-            />
+              <NumberControl
+                id="dev-admin1-dash-gap"
+                label="Dash gap"
+                min={0.05}
+                max={0.95}
+                step={0.01}
+                value={globeSettings.admin1DashGap}
+                help="Gap between dash segments."
+                onChange={(value) => onGlobeChange({ ...globeSettings, admin1DashGap: value })}
+              />
+            </SectionCard>
 
-            <NumberControl
-              id="dev-war-density"
-              label="Line density"
-              min={6}
-              max={24}
-              step={0.5}
-              value={globeSettings.warGamesLineDensity}
-              onChange={(value) => onGlobeChange({ ...globeSettings, warGamesLineDensity: value })}
-            />
+            <SectionCard title="2ND-LEVEL DIVISIONS" active={globeSettings.showAdmin2Divisions}>
+              <ToggleControl
+                id="dev-show-admin2"
+                label="Enabled"
+                checked={globeSettings.showAdmin2Divisions}
+                help="Show second-level divisions as dotted arcs."
+                onChange={(value) => onGlobeChange({ ...globeSettings, showAdmin2Divisions: value })}
+              />
 
-            <NumberControl
-              id="dev-war-glow"
-              label="Glow strength"
-              min={0}
-              max={2}
-              step={0.05}
-              value={globeSettings.warGamesGlowStrength}
-              onChange={(value) => onGlobeChange({ ...globeSettings, warGamesGlowStrength: value })}
-            />
+              <NumberControl
+                id="dev-admin2-dot-size"
+                label="Dot size"
+                min={0.02}
+                max={0.8}
+                step={0.005}
+                value={globeSettings.admin2DotSize}
+                help="Size of each visible dot segment."
+                onChange={(value) => onGlobeChange({ ...globeSettings, admin2DotSize: value })}
+              />
 
-            <NumberControl
-              id="dev-war-sweep"
-              label="Sweep strength"
-              min={0}
-              max={2}
-              step={0.05}
-              value={globeSettings.warGamesSweepStrength}
-              onChange={(value) => onGlobeChange({ ...globeSettings, warGamesSweepStrength: value })}
-            />
-          </SectionCard>
+              <NumberControl
+                id="dev-admin2-dot-gap"
+                label="Dot gap"
+                min={0.04}
+                max={0.98}
+                step={0.005}
+                value={globeSettings.admin2DotGap}
+                help="Gap between dot segments."
+                onChange={(value) => onGlobeChange({ ...globeSettings, admin2DotGap: value })}
+              />
+            </SectionCard>
 
-          <SectionCard title="Paper Values" active={globeSettings.enablePaperEffect}>
-            <ToggleControl
-              id="dev-paper-enable"
-              label="Enable Paper"
-              checked={globeSettings.enablePaperEffect}
-              onChange={(value) => onGlobeChange({ ...globeSettings, enablePaperEffect: value })}
-            />
+            <SectionCard title="Atmosphere" active>
+              <ToggleControl
+                id="dev-show-atmosphere"
+                label="Atmosphere"
+                checked={globeSettings.showAtmosphere}
+                help="Enable atmospheric glow shell."
+                onChange={(value) => onGlobeChange({ ...globeSettings, showAtmosphere: value })}
+              />
 
-            <NumberControl
-              id="dev-paper-grain"
-              label="Grain"
-              min={0}
-              max={1.6}
-              step={0.05}
-              value={globeSettings.paperGrainStrength}
-              onChange={(value) => onGlobeChange({ ...globeSettings, paperGrainStrength: value })}
-            />
+              <ColorControl
+                id="dev-atmosphere-color"
+                label="Atmosphere color"
+                value={globeSettings.atmosphereColor}
+                help="Color tint for the atmosphere shell."
+                onChange={(value) => onGlobeChange({ ...globeSettings, atmosphereColor: value })}
+              />
 
-            <NumberControl
-              id="dev-paper-halftone"
-              label="Halftone"
-              min={0}
-              max={1.6}
-              step={0.05}
-              value={globeSettings.paperHalftoneStrength}
-              onChange={(value) => onGlobeChange({ ...globeSettings, paperHalftoneStrength: value })}
-            />
+              <NumberControl
+                id="dev-atmosphere-altitude"
+                label="Atmosphere altitude"
+                min={0}
+                max={0.5}
+                step={0.005}
+                value={globeSettings.atmosphereAltitude}
+                help="How far atmosphere expands from globe surface."
+                onChange={(value) => onGlobeChange({ ...globeSettings, atmosphereAltitude: value })}
+              />
 
-            <NumberControl
-              id="dev-paper-ink"
-              label="Ink weight"
-              min={0}
-              max={1.6}
-              step={0.05}
-              value={globeSettings.paperInkStrength}
-              onChange={(value) => onGlobeChange({ ...globeSettings, paperInkStrength: value })}
-            />
-          </SectionCard>
+              <ToggleControl
+                id="dev-curved-title"
+                label="Curved title"
+                checked={globeSettings.showCurvedTitle}
+                help="Show the LEXER'S WORLD arc above the globe."
+                onChange={(value) => onGlobeChange({ ...globeSettings, showCurvedTitle: value })}
+              />
+            </SectionCard>
 
-          <SectionCard title="Phase 5B Atmosphere" active>
-            <ToggleControl
-              id="dev-nebula-enabled"
-              label="Nebula layer"
-              checked={aestheticSettings.showNebula}
-              onChange={(value) => onAestheticChange({ ...aestheticSettings, showNebula: value })}
-            />
+            <SectionCard title="Paper Effect" active={globeSettings.enablePaperEffect}>
+              <ToggleControl
+                id="dev-paper-enable"
+                label="Enable Paper"
+                checked={globeSettings.enablePaperEffect}
+                help="Applies paper grain + ink rendering style."
+                onChange={(value) => onGlobeChange({ ...globeSettings, enablePaperEffect: value })}
+              />
 
-            <NumberControl
-              id="dev-nebula-opacity"
-              label="Nebula opacity"
-              min={0}
-              max={1}
-              step={0.02}
-              value={aestheticSettings.nebulaOpacity}
-              onChange={(value) => onAestheticChange({ ...aestheticSettings, nebulaOpacity: value })}
-            />
+              <NumberControl
+                id="dev-paper-grain"
+                label="Grain"
+                min={0}
+                max={3}
+                step={0.01}
+                value={globeSettings.paperGrainStrength}
+                help="Noise amount on paper surface."
+                onChange={(value) => onGlobeChange({ ...globeSettings, paperGrainStrength: value })}
+              />
 
-            <NumberControl
-              id="dev-nebula-blur"
-              label="Nebula blur"
-              min={0}
-              max={80}
-              step={1}
-              value={aestheticSettings.nebulaBlurPx}
-              onChange={(value) => onAestheticChange({ ...aestheticSettings, nebulaBlurPx: value })}
-            />
+              <NumberControl
+                id="dev-paper-halftone"
+                label="Halftone"
+                min={0}
+                max={3}
+                step={0.01}
+                value={globeSettings.paperHalftoneStrength}
+                help="Strength of halftone dots in darker regions."
+                onChange={(value) => onGlobeChange({ ...globeSettings, paperHalftoneStrength: value })}
+              />
 
-            <NumberControl
-              id="dev-nebula-drift"
-              label="Nebula drift sec"
-              min={4}
-              max={40}
-              step={0.5}
-              value={aestheticSettings.nebulaDriftSeconds}
-              onChange={(value) =>
-                onAestheticChange({ ...aestheticSettings, nebulaDriftSeconds: value })
-              }
-            />
+              <NumberControl
+                id="dev-paper-ink"
+                label="Ink weight"
+                min={0}
+                max={3}
+                step={0.01}
+                value={globeSettings.paperInkStrength}
+                help="How bold contour ink appears."
+                onChange={(value) => onGlobeChange({ ...globeSettings, paperInkStrength: value })}
+              />
+            </SectionCard>
 
-            <ToggleControl
-              id="dev-grid-overlay"
-              label="Grid overlay"
-              checked={aestheticSettings.showGridOverlay}
-              onChange={(value) => onAestheticChange({ ...aestheticSettings, showGridOverlay: value })}
-            />
+            <SectionCard title="Phase 5B Atmosphere" active>
+              <ToggleControl
+                id="dev-nebula-enabled"
+                label="Nebula layer"
+                checked={aestheticSettings.showNebula}
+                help="Shows animated background nebulas."
+                onChange={(value) => onAestheticChange({ ...aestheticSettings, showNebula: value })}
+              />
 
-            <NumberControl
-              id="dev-grid-opacity"
-              label="Grid opacity"
-              min={0}
-              max={0.7}
-              step={0.01}
-              value={aestheticSettings.gridOpacity}
-              onChange={(value) => onAestheticChange({ ...aestheticSettings, gridOpacity: value })}
-            />
+              <NumberControl
+                id="dev-nebula-opacity"
+                label="Nebula opacity"
+                min={0}
+                max={1}
+                step={0.02}
+                value={aestheticSettings.nebulaOpacity}
+                help="Opacity of nebula layers."
+                onChange={(value) => onAestheticChange({ ...aestheticSettings, nebulaOpacity: value })}
+              />
 
-            <NumberControl
-              id="dev-grid-angle"
-              label="Grid angle"
-              min={80}
-              max={140}
-              step={1}
-              value={aestheticSettings.gridAngleDeg}
-              onChange={(value) => onAestheticChange({ ...aestheticSettings, gridAngleDeg: value })}
-            />
+              <NumberControl
+                id="dev-nebula-blur"
+                label="Nebula blur"
+                min={0}
+                max={80}
+                step={1}
+                value={aestheticSettings.nebulaBlurPx}
+                help="Blur radius for nebula layers."
+                onChange={(value) => onAestheticChange({ ...aestheticSettings, nebulaBlurPx: value })}
+              />
 
-            <NumberControl
-              id="dev-grid-spacing"
-              label="Grid spacing"
-              min={4}
-              max={24}
-              step={1}
-              value={aestheticSettings.gridSpacingPx}
-              onChange={(value) => onAestheticChange({ ...aestheticSettings, gridSpacingPx: value })}
-            />
+              <NumberControl
+                id="dev-nebula-drift"
+                label="Nebula drift sec"
+                min={4}
+                max={40}
+                step={0.5}
+                value={aestheticSettings.nebulaDriftSeconds}
+                help="Duration of one nebula drift cycle."
+                onChange={(value) =>
+                  onAestheticChange({ ...aestheticSettings, nebulaDriftSeconds: value })
+                }
+              />
 
-            <NumberControl
-              id="dev-grid-drift"
-              label="Grid drift sec"
-              min={6}
-              max={50}
-              step={0.5}
-              value={aestheticSettings.gridDriftSeconds}
-              onChange={(value) => onAestheticChange({ ...aestheticSettings, gridDriftSeconds: value })}
-            />
+              <ToggleControl
+                id="dev-grid-overlay"
+                label="Grid overlay"
+                checked={aestheticSettings.showGridOverlay}
+                help="Shows animated synth grid over background."
+                onChange={(value) => onAestheticChange({ ...aestheticSettings, showGridOverlay: value })}
+              />
 
-            <ToggleControl
-              id="dev-horizon-fade"
-              label="Horizon fade"
-              checked={aestheticSettings.showHorizonFade}
-              onChange={(value) => onAestheticChange({ ...aestheticSettings, showHorizonFade: value })}
-            />
+              <NumberControl
+                id="dev-grid-opacity"
+                label="Grid opacity"
+                min={0}
+                max={0.7}
+                step={0.01}
+                value={aestheticSettings.gridOpacity}
+                help="Opacity of the grid overlay."
+                onChange={(value) => onAestheticChange({ ...aestheticSettings, gridOpacity: value })}
+              />
 
-            <NumberControl
-              id="dev-horizon-opacity"
-              label="Horizon opacity"
-              min={0}
-              max={1}
-              step={0.02}
-              value={aestheticSettings.horizonOpacity}
-              onChange={(value) => onAestheticChange({ ...aestheticSettings, horizonOpacity: value })}
-            />
-          </SectionCard>
+              <NumberControl
+                id="dev-grid-angle"
+                label="Grid angle"
+                min={60}
+                max={150}
+                step={1}
+                value={aestheticSettings.gridAngleDeg}
+                help="Angle of the repeating grid lines."
+                onChange={(value) => onAestheticChange({ ...aestheticSettings, gridAngleDeg: value })}
+              />
 
-          <SectionCard title="Comic + Censor" active>
-            <ToggleControl
-              id="dev-motion-lines"
-              label="Motion lines"
-              checked={aestheticSettings.showMotionLines}
-              onChange={(value) => onAestheticChange({ ...aestheticSettings, showMotionLines: value })}
-            />
+              <NumberControl
+                id="dev-grid-spacing"
+                label="Grid spacing"
+                min={2}
+                max={30}
+                step={1}
+                value={aestheticSettings.gridSpacingPx}
+                help="Distance between grid lines in pixels."
+                onChange={(value) => onAestheticChange({ ...aestheticSettings, gridSpacingPx: value })}
+              />
 
-            <NumberControl
-              id="dev-motion-opacity"
-              label="Motion opacity"
-              min={0}
-              max={0.2}
-              step={0.01}
-              value={aestheticSettings.motionLinesOpacity}
-              onChange={(value) => onAestheticChange({ ...aestheticSettings, motionLinesOpacity: value })}
-            />
+              <NumberControl
+                id="dev-grid-drift"
+                label="Grid drift sec"
+                min={3}
+                max={60}
+                step={0.5}
+                value={aestheticSettings.gridDriftSeconds}
+                help="Duration of one grid drift loop."
+                onChange={(value) => onAestheticChange({ ...aestheticSettings, gridDriftSeconds: value })}
+              />
 
-            <NumberControl
-              id="dev-motion-speed"
-              label="Motion speed sec"
-              min={1}
-              max={12}
-              step={0.1}
-              value={aestheticSettings.motionLinesSpeedSeconds}
-              onChange={(value) =>
-                onAestheticChange({ ...aestheticSettings, motionLinesSpeedSeconds: value })
-              }
-            />
+              <ToggleControl
+                id="dev-horizon-fade"
+                label="Horizon fade"
+                checked={aestheticSettings.showHorizonFade}
+                help="Adds depth fade toward screen bottom."
+                onChange={(value) => onAestheticChange({ ...aestheticSettings, showHorizonFade: value })}
+              />
 
-            <ToggleControl
-              id="dev-edge-streaks"
-              label="Edge streaks"
-              checked={aestheticSettings.showEdgeStreaks}
-              onChange={(value) => onAestheticChange({ ...aestheticSettings, showEdgeStreaks: value })}
-            />
+              <NumberControl
+                id="dev-horizon-opacity"
+                label="Horizon opacity"
+                min={0}
+                max={1}
+                step={0.02}
+                value={aestheticSettings.horizonOpacity}
+                help="Opacity of horizon fade layer."
+                onChange={(value) => onAestheticChange({ ...aestheticSettings, horizonOpacity: value })}
+              />
+            </SectionCard>
 
-            <NumberControl
-              id="dev-edge-streak-opacity"
-              label="Edge streak opacity"
-              min={0}
-              max={0.25}
-              step={0.01}
-              value={aestheticSettings.edgeStreaksOpacity}
-              onChange={(value) => onAestheticChange({ ...aestheticSettings, edgeStreaksOpacity: value })}
-            />
+            <SectionCard title="Comic + Censor" active>
+              <ToggleControl
+                id="dev-motion-lines"
+                label="Motion lines"
+                checked={aestheticSettings.showMotionLines}
+                help="Enables moving line texture over scene."
+                onChange={(value) => onAestheticChange({ ...aestheticSettings, showMotionLines: value })}
+              />
 
-            <NumberControl
-              id="dev-edge-streak-speed"
-              label="Edge streak sec"
-              min={2}
-              max={24}
-              step={0.2}
-              value={aestheticSettings.edgeStreaksSpeedSeconds}
-              onChange={(value) =>
-                onAestheticChange({ ...aestheticSettings, edgeStreaksSpeedSeconds: value })
-              }
-            />
+              <NumberControl
+                id="dev-motion-opacity"
+                label="Motion opacity"
+                min={0}
+                max={0.4}
+                step={0.01}
+                value={aestheticSettings.motionLinesOpacity}
+                help="Opacity of motion line effect."
+                onChange={(value) => onAestheticChange({ ...aestheticSettings, motionLinesOpacity: value })}
+              />
 
-            <ToggleControl
-              id="dev-burst-overlay"
-              label="Burst overlay"
-              checked={aestheticSettings.showBurstOverlay}
-              onChange={(value) => onAestheticChange({ ...aestheticSettings, showBurstOverlay: value })}
-            />
+              <NumberControl
+                id="dev-motion-speed"
+                label="Motion speed sec"
+                min={0.5}
+                max={16}
+                step={0.1}
+                value={aestheticSettings.motionLinesSpeedSeconds}
+                help="Duration of one motion line cycle."
+                onChange={(value) =>
+                  onAestheticChange({ ...aestheticSettings, motionLinesSpeedSeconds: value })
+                }
+              />
 
-            <NumberControl
-              id="dev-burst-overlay-opacity"
-              label="Burst opacity"
-              min={0}
-              max={0.3}
-              step={0.01}
-              value={aestheticSettings.burstOverlayOpacity}
-              onChange={(value) => onAestheticChange({ ...aestheticSettings, burstOverlayOpacity: value })}
-            />
+              <ToggleControl
+                id="dev-edge-streaks"
+                label="Edge streaks"
+                checked={aestheticSettings.showEdgeStreaks}
+                help="Adds animated streaks near screen edges."
+                onChange={(value) => onAestheticChange({ ...aestheticSettings, showEdgeStreaks: value })}
+              />
 
-            <NumberControl
-              id="dev-burst-overlay-pulse"
-              label="Burst pulse sec"
-              min={1.5}
-              max={12}
-              step={0.1}
-              value={aestheticSettings.burstOverlayPulseSeconds}
-              onChange={(value) =>
-                onAestheticChange({ ...aestheticSettings, burstOverlayPulseSeconds: value })
-              }
-            />
+              <NumberControl
+                id="dev-edge-streak-opacity"
+                label="Edge streak opacity"
+                min={0}
+                max={0.35}
+                step={0.01}
+                value={aestheticSettings.edgeStreaksOpacity}
+                help="Opacity of edge streak effect."
+                onChange={(value) => onAestheticChange({ ...aestheticSettings, edgeStreaksOpacity: value })}
+              />
 
-            <ToggleControl
-              id="dev-comic-captions"
-              label="Comic captions"
-              checked={aestheticSettings.showComicCaptions}
-              onChange={(value) =>
-                onAestheticChange({ ...aestheticSettings, showComicCaptions: value })
-              }
-            />
+              <NumberControl
+                id="dev-edge-streak-speed"
+                label="Edge streak sec"
+                min={1}
+                max={32}
+                step={0.2}
+                value={aestheticSettings.edgeStreaksSpeedSeconds}
+                help="Duration of one edge streak animation cycle."
+                onChange={(value) =>
+                  onAestheticChange({ ...aestheticSettings, edgeStreaksSpeedSeconds: value })
+                }
+              />
 
-            <NumberControl
-              id="dev-caption-tilt"
-              label="Caption tilt"
-              min={-16}
-              max={16}
-              step={0.5}
-              value={aestheticSettings.comicCaptionRotationDeg}
-              onChange={(value) =>
-                onAestheticChange({ ...aestheticSettings, comicCaptionRotationDeg: value })
-              }
-            />
+              <ToggleControl
+                id="dev-burst-overlay"
+                label="Burst overlay"
+                checked={aestheticSettings.showBurstOverlay}
+                help="Adds comic burst overlay over scene."
+                onChange={(value) => onAestheticChange({ ...aestheticSettings, showBurstOverlay: value })}
+              />
 
-            <NumberControl
-              id="dev-benday-opacity"
-              label="Ben-day opacity"
-              min={0}
-              max={1}
-              step={0.02}
-              value={aestheticSettings.bendayOpacity}
-              onChange={(value) => onAestheticChange({ ...aestheticSettings, bendayOpacity: value })}
-            />
+              <NumberControl
+                id="dev-burst-overlay-opacity"
+                label="Burst opacity"
+                min={0}
+                max={0.5}
+                step={0.01}
+                value={aestheticSettings.burstOverlayOpacity}
+                help="Opacity of burst overlay."
+                onChange={(value) => onAestheticChange({ ...aestheticSettings, burstOverlayOpacity: value })}
+              />
 
-            <NumberControl
-              id="dev-panel-blur"
-              label="Panel blur"
-              min={0}
-              max={26}
-              step={1}
-              value={aestheticSettings.panelBlurPx}
-              onChange={(value) => onAestheticChange({ ...aestheticSettings, panelBlurPx: value })}
-            />
+              <NumberControl
+                id="dev-burst-overlay-pulse"
+                label="Burst pulse sec"
+                min={0.8}
+                max={16}
+                step={0.1}
+                value={aestheticSettings.burstOverlayPulseSeconds}
+                help="Duration of one burst pulse cycle."
+                onChange={(value) =>
+                  onAestheticChange({ ...aestheticSettings, burstOverlayPulseSeconds: value })
+                }
+              />
 
-            <ToggleControl
-              id="dev-glitch-enabled"
-              label="Glitch censor"
-              checked={aestheticSettings.glitchEnabled}
-              onChange={(value) => onAestheticChange({ ...aestheticSettings, glitchEnabled: value })}
-            />
+              <ToggleControl
+                id="dev-comic-captions"
+                label="Comic captions"
+                checked={aestheticSettings.showComicCaptions}
+                help="Enables comic text caption treatments."
+                onChange={(value) =>
+                  onAestheticChange({ ...aestheticSettings, showComicCaptions: value })
+                }
+              />
 
-            <NumberControl
-              id="dev-glitch-speed"
-              label="Glitch speed sec"
-              min={0.4}
-              max={6}
-              step={0.1}
-              value={aestheticSettings.glitchSpeedSeconds}
-              onChange={(value) => onAestheticChange({ ...aestheticSettings, glitchSpeedSeconds: value })}
-            />
-          </SectionCard>
+              <NumberControl
+                id="dev-caption-tilt"
+                label="Caption tilt"
+                min={-22}
+                max={22}
+                step={0.5}
+                value={aestheticSettings.comicCaptionRotationDeg}
+                help="Rotation angle applied to caption overlays."
+                onChange={(value) =>
+                  onAestheticChange({ ...aestheticSettings, comicCaptionRotationDeg: value })
+                }
+              />
 
-          <div className="mt-0.5 grid grid-cols-3 gap-1">
-            <ResetButton label="Reset Globe" onClick={() => onGlobeChange(DEFAULT_GLOBE_RUNTIME_SETTINGS)} />
-            <ResetButton
-              label="Reset VFX"
-              onClick={() => onAestheticChange(DEFAULT_AESTHETIC_RUNTIME_SETTINGS)}
-            />
-            <ResetButton
-              label="Reset All"
-              onClick={() => {
-                onGlobeChange(DEFAULT_GLOBE_RUNTIME_SETTINGS);
-                onAestheticChange(DEFAULT_AESTHETIC_RUNTIME_SETTINGS);
-              }}
-            />
+              <NumberControl
+                id="dev-benday-opacity"
+                label="Ben-day opacity"
+                min={0}
+                max={1}
+                step={0.02}
+                value={aestheticSettings.bendayOpacity}
+                help="Opacity of Ben-Day dot overlays."
+                onChange={(value) => onAestheticChange({ ...aestheticSettings, bendayOpacity: value })}
+              />
+
+              <NumberControl
+                id="dev-panel-blur"
+                label="Panel blur"
+                min={0}
+                max={32}
+                step={1}
+                value={aestheticSettings.panelBlurPx}
+                help="Backdrop blur strength for panels."
+                onChange={(value) => onAestheticChange({ ...aestheticSettings, panelBlurPx: value })}
+              />
+
+              <ToggleControl
+                id="dev-glitch-enabled"
+                label="Glitch censor"
+                checked={aestheticSettings.glitchEnabled}
+                help="Enables glitch masking animations for outsider redactions."
+                onChange={(value) => onAestheticChange({ ...aestheticSettings, glitchEnabled: value })}
+              />
+
+              <NumberControl
+                id="dev-glitch-speed"
+                label="Glitch speed sec"
+                min={0.2}
+                max={8}
+                step={0.1}
+                value={aestheticSettings.glitchSpeedSeconds}
+                help="Duration of one glitch animation cycle."
+                onChange={(value) => onAestheticChange({ ...aestheticSettings, glitchSpeedSeconds: value })}
+              />
+            </SectionCard>
+
+            <div className="mt-0.5 grid grid-cols-3 gap-1">
+              <ResetButton label="Reset Globe" onClick={() => onGlobeChange(DEFAULT_GLOBE_RUNTIME_SETTINGS)} />
+              <ResetButton
+                label="Reset VFX"
+                onClick={() => onAestheticChange(DEFAULT_AESTHETIC_RUNTIME_SETTINGS)}
+              />
+              <ResetButton
+                label="Reset All"
+                onClick={() => {
+                  onGlobeChange(DEFAULT_GLOBE_RUNTIME_SETTINGS);
+                  onAestheticChange(DEFAULT_AESTHETIC_RUNTIME_SETTINGS);
+                }}
+              />
+            </div>
           </div>
         </div>
-      </div>
       </aside>
     </>
   );

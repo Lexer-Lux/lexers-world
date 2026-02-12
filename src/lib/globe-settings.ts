@@ -1,5 +1,3 @@
-export type GlobeExperimentMode = "default" | "wargames" | "paper";
-
 export interface GlobeRuntimeSettings {
   zoomThreshold: number;
   autoRotate: boolean;
@@ -18,14 +16,17 @@ export interface GlobeRuntimeSettings {
   pointAltitude: number;
   markerScale: number;
   boundaryOpacity: number;
-  showBoundaryTiers: boolean;
+  showInternationalBorders: boolean;
+  internationalBorderThickness: number;
+  showAdmin1Divisions: boolean;
+  admin1Thickness: number;
+  admin1DashLength: number;
+  admin1DashGap: number;
+  showAdmin2Divisions: boolean;
+  admin2DotSize: number;
+  admin2DotGap: number;
   showCurvedTitle: boolean;
-  globeExperimentMode: GlobeExperimentMode;
-  enableWarGamesEffect: boolean;
   enablePaperEffect: boolean;
-  warGamesLineDensity: number;
-  warGamesGlowStrength: number;
-  warGamesSweepStrength: number;
   paperGrainStrength: number;
   paperHalftoneStrength: number;
   paperInkStrength: number;
@@ -49,14 +50,17 @@ export const DEFAULT_GLOBE_RUNTIME_SETTINGS: GlobeRuntimeSettings = {
   pointAltitude: 0.01,
   markerScale: 1,
   boundaryOpacity: 1,
-  showBoundaryTiers: true,
+  showInternationalBorders: true,
+  internationalBorderThickness: 0.98,
+  showAdmin1Divisions: true,
+  admin1Thickness: 0.64,
+  admin1DashLength: 0.35,
+  admin1DashGap: 0.35,
+  showAdmin2Divisions: true,
+  admin2DotSize: 0.1,
+  admin2DotGap: 0.22,
   showCurvedTitle: true,
-  globeExperimentMode: "default",
-  enableWarGamesEffect: false,
   enablePaperEffect: false,
-  warGamesLineDensity: 11,
-  warGamesGlowStrength: 1,
-  warGamesSweepStrength: 0.9,
   paperGrainStrength: 0.75,
   paperHalftoneStrength: 0.8,
   paperInkStrength: 0.9,

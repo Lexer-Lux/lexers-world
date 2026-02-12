@@ -27,7 +27,7 @@ const ADMIN1_LINES_GEOJSON_URL =
 const ADMIN2_COUNTIES_GEOJSON_URL =
   "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_2_counties.geojson";
 
-type BoundaryTier = "country" | "admin1" | "admin2" | "hatch";
+type BoundaryTier = "country" | "admin1" | "admin2";
 
 interface BoundaryArc {
   startLat: number;
@@ -242,31 +242,7 @@ async function fetchGeoJsonFeatures(url: string): Promise<GeoFeature[]> {
   return Array.isArray(payload.features) ? payload.features : [];
 }
 
-function getBoundaryColor(warEnabled: boolean, paperEnabled: boolean, tier: BoundaryTier): string {
-  if (tier === "hatch") {
-    if (warEnabled) {
-      return "rgba(106, 245, 194, 0.58)";
-    }
-
-    if (paperEnabled) {
-      return "rgba(136, 106, 76, 0.5)";
-    }
-
-    return "rgba(170, 206, 240, 0.44)";
-  }
-
-  if (warEnabled && paperEnabled) {
-    if (tier === "country") return "rgba(166, 232, 208, 0.9)";
-    if (tier === "admin1") return "rgba(130, 213, 190, 0.75)";
-    return "rgba(103, 193, 169, 0.6)";
-  }
-
-  if (warEnabled) {
-    if (tier === "country") return "rgba(144, 255, 211, 0.9)";
-    if (tier === "admin1") return "rgba(109, 245, 188, 0.75)";
-    return "rgba(86, 226, 168, 0.6)";
-  }
-
+function getBoundaryColor(paperEnabled: boolean, tier: BoundaryTier): string {
   if (paperEnabled) {
     if (tier === "country") return "rgba(105, 76, 47, 0.86)";
     if (tier === "admin1") return "rgba(121, 89, 58, 0.68)";
@@ -293,23 +269,15 @@ function scaleRgbaAlpha(color: string, alphaScale: number): string {
   return `rgba(${red}, ${green}, ${blue}, ${scaledAlpha.toFixed(3)})`;
 }
 
-function getMarkerPalette(warEnabled: boolean, paperEnabled: boolean): { fill: string; stroke: string } {
-  if (warEnabled || paperEnabled) {
+function getMarkerPalette(paperEnabled: boolean): { fill: string; stroke: string } {
+  if (paperEnabled) {
     return { fill: "#ff2d75", stroke: "#ff95b7" };
   }
 
   return { fill: "#ff1744", stroke: "#ff8aa5" };
 }
 
-function getPointColor(warEnabled: boolean, paperEnabled: boolean): string {
-  if (warEnabled && paperEnabled) {
-    return "#9fffd7";
-  }
-
-  if (warEnabled) {
-    return "#74ffc3";
-  }
-
+function getPointColor(paperEnabled: boolean): string {
   if (paperEnabled) {
     return "#8a402b";
   }
@@ -317,15 +285,7 @@ function getPointColor(warEnabled: boolean, paperEnabled: boolean): string {
   return "#ff2d75";
 }
 
-function getAtmosphereColor(warEnabled: boolean, paperEnabled: boolean): string {
-  if (warEnabled && paperEnabled) {
-    return "#79d6b2";
-  }
-
-  if (warEnabled) {
-    return "#2ad790";
-  }
-
+function getAtmosphereColor(paperEnabled: boolean): string {
   if (paperEnabled) {
     return "#b99c77";
   }
@@ -333,15 +293,7 @@ function getAtmosphereColor(warEnabled: boolean, paperEnabled: boolean): string 
   return "#4f72ff";
 }
 
-function getAtmosphereAltitude(warEnabled: boolean, paperEnabled: boolean, lowPower: boolean): number {
-  if (warEnabled && paperEnabled) {
-    return lowPower ? 0.08 : 0.105;
-  }
-
-  if (warEnabled) {
-    return lowPower ? 0.06 : 0.085;
-  }
-
+function getAtmosphereAltitude(paperEnabled: boolean, lowPower: boolean): number {
   if (paperEnabled) {
     return lowPower ? 0.08 : 0.1;
   }
@@ -349,33 +301,13 @@ function getAtmosphereAltitude(warEnabled: boolean, paperEnabled: boolean, lowPo
   return lowPower ? 0.1 : 0.13;
 }
 
-function getMaterialPalette(warEnabled: boolean, paperEnabled: boolean): {
+function getMaterialPalette(paperEnabled: boolean): {
   color: string;
   emissive: string;
   emissiveIntensity: number;
   specular: string;
   shininess: number;
 } {
-  if (warEnabled && paperEnabled) {
-    return {
-      color: "#ffffff",
-      emissive: "#101713",
-      emissiveIntensity: 0.52,
-      specular: "#d2eec6",
-      shininess: 12,
-    };
-  }
-
-  if (warEnabled) {
-    return {
-      color: "#ffffff",
-      emissive: "#04150d",
-      emissiveIntensity: 0.88,
-      specular: "#8dffc9",
-      shininess: 28,
-    };
-  }
-
   if (paperEnabled) {
     return {
       color: "#ffffff",
@@ -446,58 +378,6 @@ diffuseColor.rgb += vec3(0.0, 0.7, 1.0) * rim * 0.2;
 #include <dithering_fragment>`;
 }
 
-function buildWarGamesFragmentBody(settings: GlobeRuntimeSettings, lowPower: boolean): string {
-  const lineDensity = shaderFloat(
-    clamp(settings.warGamesLineDensity, 6, 24) * (lowPower ? 0.92 : 1)
-  );
-  const glowStrength = shaderFloat(clamp(settings.warGamesGlowStrength, 0, 2));
-  const sweepStrength = shaderFloat(clamp(settings.warGamesSweepStrength, 0, 2));
-  const crosshatchDensity = shaderFloat(
-    clamp(settings.crosshatchDensity, 0.4, 2.2) * (lowPower ? 0.8 : 1)
-  );
-  const crosshatchThreshold = shaderFloat(clamp(settings.crosshatchThreshold, 0.55, 0.98));
-
-  return `vec3 worldNormal = normalize(vWorldNormal);
-float sunDot = dot(worldNormal, normalize(uSunDirection));
-float lon = atan(worldNormal.z, worldNormal.x);
-float lat = asin(clamp(worldNormal.y, -1.0, 1.0));
-
-float majorLon = 1.0 - smoothstep(0.9, 0.995, abs(sin(lon * ${lineDensity})));
-float majorLat = 1.0 - smoothstep(0.9, 0.995, abs(sin(lat * ${lineDensity} * 0.92)));
-float minorLon = 1.0 - smoothstep(0.962, 0.999, abs(sin(lon * ${lineDensity} * 2.6)));
-float minorLat = 1.0 - smoothstep(0.962, 0.999, abs(sin(lat * ${lineDensity} * 2.35)));
-
-float wireMask = clamp(max(majorLon, majorLat) * (0.4 + uWireStrength * 0.95) + max(minorLon, minorLat) * 0.55 * uWireStrength, 0.0, 1.0);
-float dayMix = smoothstep(-0.14, 0.55, sunDot);
-float nightMix = 1.0 - dayMix;
-
-vec3 baseColor = mix(vec3(0.004, 0.02, 0.017), vec3(0.025, 0.07, 0.056), dayMix);
-vec3 lineColor = vec3(0.24, 1.0, 0.69);
-vec3 glowColor = vec3(0.53, 1.0, 0.8);
-
-float hatchA = abs(sin((vWorldPosition.x + vWorldPosition.y) * (0.16 * ${crosshatchDensity})));
-float hatchB = abs(sin((vWorldPosition.y - vWorldPosition.z) * (0.19 * ${crosshatchDensity})));
-float hatchMask = clamp(step(${crosshatchThreshold}, hatchA) * 0.58 + step(${crosshatchThreshold}, hatchB) * 0.42, 0.0, 1.0);
-float hatchDim = hatchMask * uHatchStrength * (0.18 + nightMix * 0.32);
-
-float sweepPattern = 1.0 - smoothstep(0.85, 0.998, abs(sin(vWorldPosition.y * 0.11 + vWorldPosition.x * 0.13)));
-float sweep = sweepPattern * ${sweepStrength};
-float horizonBand = 1.0 - smoothstep(0.0, 0.075, abs(sunDot));
-
-diffuseColor.rgb = baseColor + lineColor * wireMask;
-diffuseColor.rgb += lineColor * sweep * 0.24;
-diffuseColor.rgb += glowColor * horizonBand * (0.22 + ${glowStrength} * 0.35);
-diffuseColor.rgb += lineColor * nightMix * 0.08 * ${glowStrength};
-diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.56, hatchDim);
-diffuseColor.rgb += vec3(0.03, 0.14, 0.09) * dayMix * 0.3;
-
-float starNoise = fract(sin(dot(vWorldPosition.xy + vec2(vWorldPosition.z), vec2(12.9898, 78.233))) * 43758.5453);
-diffuseColor.rgb += step(0.997, starNoise) * glowColor * 0.35 * ${glowStrength};
-diffuseColor.rgb = clamp(diffuseColor.rgb, 0.0, 1.0);
-
-#include <dithering_fragment>`;
-}
-
 function buildPaperFragmentBody(settings: GlobeRuntimeSettings, lowPower: boolean): string {
   const grainStrength = shaderFloat(
     clamp(settings.paperGrainStrength, 0, 1.6) * (lowPower ? 0.7 : 1)
@@ -552,34 +432,6 @@ diffuseColor.rgb = clamp(diffuseColor.rgb, 0.0, 1.0);
 }
 
 function buildFragmentBody(settings: GlobeRuntimeSettings, lowPower: boolean): string {
-  if (settings.enableWarGamesEffect && settings.enablePaperEffect) {
-    const base = buildDefaultFragmentBody(settings, lowPower);
-    const lineDensity = shaderFloat(clamp(settings.warGamesLineDensity, 6, 24));
-    const glowStrength = shaderFloat(clamp(settings.warGamesGlowStrength, 0, 2));
-    const paperGrain = shaderFloat(clamp(settings.paperGrainStrength, 0, 1.6));
-    const paperInk = shaderFloat(clamp(settings.paperInkStrength, 0, 1.6));
-
-    return base.replace(
-      "#include <dithering_fragment>",
-      `float hybridLon = 1.0 - smoothstep(0.92, 0.995, abs(sin(atan(worldNormal.z, worldNormal.x) * ${lineDensity})));
-float hybridLat = 1.0 - smoothstep(0.92, 0.995, abs(sin(asin(clamp(worldNormal.y, -1.0, 1.0)) * (${lineDensity} * 0.92))));
-float hybridWire = clamp(max(hybridLon, hybridLat) * uWireStrength, 0.0, 1.0);
-vec3 hybridLineColor = vec3(0.58, 1.0, 0.79);
-diffuseColor.rgb = mix(diffuseColor.rgb, hybridLineColor, hybridWire * (0.28 + ${glowStrength} * 0.2));
-
-float hybridGrain = fract(sin(dot(vWorldPosition.xy + vec2(vWorldPosition.z), vec2(127.1, 311.7))) * 43758.5453);
-diffuseColor.rgb += vec3((hybridGrain - 0.5) * ${paperGrain} * 0.12);
-diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.84, (1.0 - smoothstep(0.0, 0.35, sunDot)) * ${paperInk} * 0.22);
-diffuseColor.rgb = clamp(diffuseColor.rgb, 0.0, 1.0);
-
-#include <dithering_fragment>`
-    );
-  }
-
-  if (settings.enableWarGamesEffect) {
-    return buildWarGamesFragmentBody(settings, lowPower);
-  }
-
   if (settings.enablePaperEffect) {
     return buildPaperFragmentBody(settings, lowPower);
   }
@@ -595,9 +447,8 @@ export default function Globe({
   onAltitudeChange,
 }: GlobeProps) {
   const settings = runtimeSettings ?? DEFAULT_GLOBE_RUNTIME_SETTINGS;
-  const warEnabled = settings.enableWarGamesEffect;
   const paperEnabled = settings.enablePaperEffect;
-  const useStylizedShader = warEnabled || paperEnabled;
+  const useStylizedShader = true;
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
   const onLocationClickRef = useRef(onLocationClick);
   const onAltitudeChangeRef = useRef(onAltitudeChange);
@@ -641,7 +492,7 @@ export default function Globe({
     const detailStrength = getDetailStrength(performanceProfile.lowPower);
     const wireStrength = clamp(settings.wireStrength, 0, 1.6);
     const hatchStrength = clamp(settings.hatchStrength, 0, 1.6);
-    const palette = getMaterialPalette(warEnabled, paperEnabled);
+    const palette = getMaterialPalette(paperEnabled);
 
     const material = new MeshPhongMaterial({
       color: new Color(palette.color),
@@ -651,6 +502,9 @@ export default function Globe({
       shininess: palette.shininess,
       map: earthTexture ?? undefined,
     });
+    material.transparent = false;
+    material.opacity = 1;
+    material.depthWrite = true;
 
     const uniforms: GlobeShaderUniforms = {
       uSunDirection: { value: SUN_DIRECTION },
@@ -703,15 +557,11 @@ uniform float uWireStrength;`
       [
         "stylized-globe",
         performanceProfile.lowPower ? "low" : "full",
-        settings.enableWarGamesEffect ? "war-on" : "war-off",
         settings.enablePaperEffect ? "paper-on" : "paper-off",
         settings.wireStrength,
         settings.hatchStrength,
         settings.crosshatchDensity,
         settings.crosshatchThreshold,
-        settings.warGamesLineDensity,
-        settings.warGamesGlowStrength,
-        settings.warGamesSweepStrength,
         settings.paperGrainStrength,
         settings.paperHalftoneStrength,
         settings.paperInkStrength,
@@ -719,7 +569,6 @@ uniform float uWireStrength;`
 
     return material;
   }, [
-    warEnabled,
     paperEnabled,
     useStylizedShader,
     earthTexture,
@@ -730,78 +579,64 @@ uniform float uWireStrength;`
   const isZoomedOut = altitude >= settings.zoomThreshold;
 
   const boundaryArcs = useMemo(() => {
-    if (!settings.showBoundaryTiers) {
-      return [];
-    }
-
-    const showCountry = true;
-    const showAdmin1 = altitude <= Math.max(2.2, settings.zoomThreshold + 0.5);
-    const showAdmin2 = !performanceProfile.lowPower && altitude <= settings.zoomThreshold + 0.1;
-
     const arcs: BoundaryArc[] = [];
 
-    if (showCountry && countryBoundaryArcs.length > 0) {
+    if (settings.showInternationalBorders && countryBoundaryArcs.length > 0) {
       arcs.push(...countryBoundaryArcs);
     }
 
-    if (showAdmin1 && admin1BoundaryArcs.length > 0) {
+    if (settings.showAdmin1Divisions && admin1BoundaryArcs.length > 0) {
       arcs.push(...admin1BoundaryArcs);
     }
 
-    if (showAdmin2 && admin2BoundaryArcs.length > 0) {
+    if (settings.showAdmin2Divisions && admin2BoundaryArcs.length > 0) {
       arcs.push(...admin2BoundaryArcs);
-    }
-
-    if (!useStylizedShader && settings.hatchStrength > 0.01) {
-      const density = clamp(settings.crosshatchDensity, 0.4, 2.2);
-      const source = showAdmin2
-        ? admin2BoundaryArcs
-        : showAdmin1
-          ? admin1BoundaryArcs
-          : countryBoundaryArcs;
-      const stride = Math.max(1, Math.round(5 / density));
-
-      for (let index = 0; index < source.length; index += stride) {
-        arcs.push({ ...source[index], tier: "hatch" });
-      }
     }
 
     return arcs;
   }, [
-    altitude,
     admin1BoundaryArcs,
     admin2BoundaryArcs,
     countryBoundaryArcs,
-    performanceProfile.lowPower,
-    settings.crosshatchDensity,
-    settings.hatchStrength,
-    settings.showBoundaryTiers,
-    settings.zoomThreshold,
-    useStylizedShader,
+    settings.showAdmin1Divisions,
+    settings.showAdmin2Divisions,
+    settings.showInternationalBorders,
   ]);
 
   const atmosphereColor = useMemo(() => {
-    const fallback = getAtmosphereColor(warEnabled, paperEnabled);
+    const fallback = getAtmosphereColor(paperEnabled);
     const configured = settings.atmosphereColor?.trim();
     if (!configured) {
       return fallback;
     }
 
     return /^#(?:[0-9a-fA-F]{3}){1,2}$/.test(configured) ? configured : fallback;
-  }, [paperEnabled, settings.atmosphereColor, warEnabled]);
+  }, [paperEnabled, settings.atmosphereColor]);
 
   const atmosphereAltitude = useMemo(() => {
-    const fallback = getAtmosphereAltitude(warEnabled, paperEnabled, performanceProfile.lowPower);
+    const fallback = getAtmosphereAltitude(paperEnabled, performanceProfile.lowPower);
     return clamp(settings.atmosphereAltitude || fallback, 0.03, 0.28);
-  }, [paperEnabled, performanceProfile.lowPower, settings.atmosphereAltitude, warEnabled]);
+  }, [paperEnabled, performanceProfile.lowPower, settings.atmosphereAltitude]);
 
-  const pointRadius = useMemo(() => clamp(settings.pointRadius, 0.12, 1.2), [settings.pointRadius]);
-  const pointAltitude = useMemo(() => clamp(settings.pointAltitude, 0, 0.05), [settings.pointAltitude]);
-  const markerScale = useMemo(() => clamp(settings.markerScale, 0.6, 2), [settings.markerScale]);
+  const pointRadius = useMemo(() => clamp(settings.pointRadius, 0.05, 2.4), [settings.pointRadius]);
+  const pointAltitude = useMemo(() => clamp(settings.pointAltitude, 0, 0.12), [settings.pointAltitude]);
+  const markerScale = useMemo(() => clamp(settings.markerScale, 0.35, 3.2), [settings.markerScale]);
   const boundaryOpacity = useMemo(
-    () => clamp(settings.boundaryOpacity, 0, 1.6),
+    () => clamp(settings.boundaryOpacity, 0, 2.4),
     [settings.boundaryOpacity]
   );
+  const internationalBorderThickness = useMemo(
+    () => clamp(settings.internationalBorderThickness, 0.2, 2.5),
+    [settings.internationalBorderThickness]
+  );
+  const admin1Thickness = useMemo(() => clamp(settings.admin1Thickness, 0.1, 2), [settings.admin1Thickness]);
+  const admin1DashLength = useMemo(
+    () => clamp(settings.admin1DashLength, 0.05, 0.95),
+    [settings.admin1DashLength]
+  );
+  const admin1DashGap = useMemo(() => clamp(settings.admin1DashGap, 0.05, 0.95), [settings.admin1DashGap]);
+  const admin2DotSize = useMemo(() => clamp(settings.admin2DotSize, 0.02, 0.8), [settings.admin2DotSize]);
+  const admin2DotGap = useMemo(() => clamp(settings.admin2DotGap, 0.04, 0.98), [settings.admin2DotGap]);
 
   useEffect(() => {
     let cancelled = false;
@@ -923,7 +758,7 @@ uniform float uWireStrength;`
         return "";
       }
 
-      const palette = getMarkerPalette(warEnabled, paperEnabled);
+      const palette = getMarkerPalette(paperEnabled);
       const markerSize = Math.max(14, Math.round(24 * markerScale));
       const labelFontSize = Math.max(9, Math.round(11 * markerScale));
       const labelMarginTop = Math.max(2, Math.round(2 * markerScale));
@@ -953,7 +788,7 @@ uniform float uWireStrength;`
         </div>
       `;
     },
-    [isZoomedOut, markerScale, paperEnabled, warEnabled]
+    [isZoomedOut, markerScale, paperEnabled]
   );
 
   return (
@@ -965,7 +800,7 @@ uniform float uWireStrength;`
       backgroundImageUrl={null}
       globeImageUrl={EARTH_TEXTURE_URL}
       globeMaterial={useStylizedShader ? globeMaterial ?? undefined : undefined}
-      showGraticules={!warEnabled && !paperEnabled}
+      showGraticules={!paperEnabled}
       showAtmosphere={settings.showAtmosphere}
       atmosphereColor={atmosphereColor}
       atmosphereAltitude={atmosphereAltitude}
@@ -977,41 +812,38 @@ uniform float uWireStrength;`
       arcEndLng={(data) => (data as BoundaryArc).endLng}
       arcColor={(data: object) =>
         scaleRgbaAlpha(
-          getBoundaryColor(warEnabled, paperEnabled, (data as BoundaryArc).tier),
+          getBoundaryColor(paperEnabled, (data as BoundaryArc).tier),
           boundaryOpacity *
-            ((data as BoundaryArc).tier === "hatch"
-              ? clamp(settings.hatchStrength, 0, 1.6) *
-                clamp((1 - settings.crosshatchThreshold) / 0.45, 0, 1)
-              : clamp(0.35 + settings.wireStrength * 0.65, 0.35, 1.6))
+            ((data as BoundaryArc).tier === "country"
+              ? 1
+              : (data as BoundaryArc).tier === "admin1"
+                ? 0.9
+                : 0.78)
         )
       }
       arcAltitude={(data: object) => {
         const tier = (data as BoundaryArc).tier;
-        if (tier === "hatch") return 0.002;
         if (tier === "country") return 0.016;
         if (tier === "admin1") return 0.012;
         return 0.008;
       }}
       arcStroke={(data: object) => {
         const tier = (data as BoundaryArc).tier;
-        if (tier === "hatch") return 0.22;
-        if (tier === "country") return 0.98;
-        if (tier === "admin1") return 0.64;
+        if (tier === "country") return internationalBorderThickness;
+        if (tier === "admin1") return admin1Thickness;
         return 0.36;
       }}
       arcDashLength={(data: object) => {
         const tier = (data as BoundaryArc).tier;
-        if (tier === "hatch") return 0.2;
         if (tier === "country") return 1;
-        if (tier === "admin1") return 0.35;
-        return 0.1;
+        if (tier === "admin1") return admin1DashLength;
+        return admin2DotSize;
       }}
       arcDashGap={(data: object) => {
         const tier = (data as BoundaryArc).tier;
-        if (tier === "hatch") return 0.18;
         if (tier === "country") return 0;
-        if (tier === "admin1") return 0.35;
-        return 0.22;
+        if (tier === "admin1") return admin1DashGap;
+        return admin2DotGap;
       }}
       arcDashAnimateTime={0}
       arcsTransitionDuration={0}
@@ -1036,7 +868,7 @@ uniform float uWireStrength;`
       pointsData={isZoomedOut ? [] : events}
       pointLat={(data) => (data as LexerEvent).lat}
       pointLng={(data) => (data as LexerEvent).lng}
-      pointColor={() => getPointColor(warEnabled, paperEnabled)}
+      pointColor={() => getPointColor(paperEnabled)}
       pointRadius={pointRadius}
       pointAltitude={pointAltitude}
       pointResolution={performanceProfile.pointResolution}

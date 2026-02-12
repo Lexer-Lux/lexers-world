@@ -314,37 +314,38 @@ export default function EventDetailView({
             "0 0 40px rgba(176, 38, 255, 0.15), 0 0 80px rgba(255, 45, 117, 0.08)",
         }}
       >
+        <button
+          onClick={onClose}
+          aria-label="Close event detail"
+          className="absolute left-3 top-3 z-20 flex h-10 w-10 cursor-pointer items-center justify-center rounded border transition-colors"
+          style={{
+            color: "var(--neon-pink)",
+            borderColor: "var(--border-pink)",
+            background: "rgba(255, 45, 117, 0.08)",
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </button>
+
         {event.recurrent && (
-          <div className="absolute right-3 top-3 z-10">
+          <div className="absolute right-3 top-3 z-20">
             <RecurringBadge size={32} />
           </div>
         )}
 
         <div
-          className="relative z-[2] flex items-center justify-between px-4 py-3 sm:px-5"
+          className="relative z-[2] flex items-center justify-center px-4 py-3 sm:px-5"
           style={{ borderBottom: "1px solid rgba(255, 45, 117, 0.2)" }}
         >
           <span className="font-mono text-[11px] uppercase tracking-[0.22em]" style={{ color: "var(--copy-muted)" }}>
             EVENT
           </span>
-          <button
-            onClick={onClose}
-            aria-label="Close event detail"
-            className="flex h-9 w-9 cursor-pointer items-center justify-center rounded border transition-colors"
-            style={{
-              color: "var(--neon-pink)",
-              borderColor: "var(--border-pink)",
-              background: "rgba(255, 45, 117, 0.06)",
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          </button>
         </div>
 
         <div className="relative z-[2] flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
-          <div className="mb-4 flex items-center gap-2 pr-12">
+          <div className="mb-4 flex items-center gap-2 px-12">
             {viewerMode === "insider" && event.isLexerComing === true && <LexerPresenceIcon size={20} />}
             <h1
               className="font-mono text-xl font-black uppercase tracking-wide text-neon-pink sm:text-2xl"
