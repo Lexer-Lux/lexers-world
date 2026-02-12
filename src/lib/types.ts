@@ -13,6 +13,24 @@ export interface ViewerAuthStatus {
   twitterUsername: string | null;
 }
 
+export interface GeolocationPrivacySettings {
+  minDistanceKm: number;
+  maxDistanceKm: number;
+  coordinateDecimals: number;
+}
+
+export type FxRateSource = "live";
+
+export interface FxRatesResponse {
+  ratesToUsd: Record<string, number>;
+  source: FxRateSource;
+  updatedAt: string | null;
+}
+
+export interface FxRatesErrorResponse {
+  error: string;
+}
+
 export interface LexerEvent {
   id: string;
   name: string;
@@ -38,6 +56,7 @@ export interface EventsApiResponse {
   source: EventsSource;
   viewerMode: ViewerMode;
   privacyDisclaimer: string;
+  geolocationSettings: GeolocationPrivacySettings;
   authStatus: ViewerAuthStatus;
   approvalMessage: string;
 }

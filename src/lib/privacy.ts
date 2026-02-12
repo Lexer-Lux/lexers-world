@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 import { resolveViewerAuthStatus } from "@/lib/auth";
-import type { LexerEvent, ViewerAuthStatus, ViewerMode } from "@/lib/types";
+import type { GeolocationPrivacySettings, LexerEvent, ViewerAuthStatus, ViewerMode } from "@/lib/types";
 import {
   INSIDER_PRIVACY_DISCLAIMER,
   OUTSIDER_PRIVACY_DISCLAIMER,
@@ -8,8 +8,16 @@ import {
 } from "@/lib/privacy-constants";
 
 const FALLBACK_FUZZ_SECRET = "dev-fuzz-secret-change-me";
+const DEFAULT_FUZZ_MIN_DISTANCE_KM = 2;
+const DEFAULT_FUZZ_MAX_DISTANCE_KM = 8;
+const DEFAULT_FUZZ_COORDINATE_DECIMALS = 5;
+const MIN_FUZZ_DISTANCE_KM = 0.25;
+const MAX_FUZZ_DISTANCE_KM = 50;
+const MIN_FUZZ_COORDINATE_DECIMALS = 2;
+const MAX_FUZZ_COORDINATE_DECIMALS = 6;
 
 let warnedAboutFallbackSecret = false;
+let cachedGeolocationSettings: GeolocationPrivacySettings | null = null;
 
 function toRadians(value: number): number {
   return (value * Math.PI) / 180;
@@ -24,6 +32,62 @@ function normalizeLng(value: number): number {
   while (lng > 180) lng -= 360;
   while (lng < -180) lng += 360;
   return lng;
+}
+
+function readNumericEnv(
+  envKey: string,
+  fallback: number,
+  min: number,
+  max: number
+): number {
+  const rawValue = process.env[envKey];
+  if (typeof rawValue !== "string" || rawValue.trim().length === 0) {
+    return fallback;
+  }
+
+  const parsed = Number(rawValue);
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+
+  return Math.min(max, Math.max(min, parsed));
+}
+
+export function getGeolocationPrivacySettings(): GeolocationPrivacySettings {
+  if (cachedGeolocationSettings) {
+    return cachedGeolocationSettings;
+  }
+
+  const minDistanceKm = readNumericEnv(
+    "FUZZ_MIN_DISTANCE_KM",
+    DEFAULT_FUZZ_MIN_DISTANCE_KM,
+    MIN_FUZZ_DISTANCE_KM,
+    MAX_FUZZ_DISTANCE_KM
+  );
+
+  const configuredMaxDistanceKm = readNumericEnv(
+    "FUZZ_MAX_DISTANCE_KM",
+    DEFAULT_FUZZ_MAX_DISTANCE_KM,
+    MIN_FUZZ_DISTANCE_KM,
+    MAX_FUZZ_DISTANCE_KM
+  );
+
+  const coordinateDecimals = Math.round(
+    readNumericEnv(
+      "FUZZ_COORDINATE_DECIMALS",
+      DEFAULT_FUZZ_COORDINATE_DECIMALS,
+      MIN_FUZZ_COORDINATE_DECIMALS,
+      MAX_FUZZ_COORDINATE_DECIMALS
+    )
+  );
+
+  cachedGeolocationSettings = {
+    minDistanceKm,
+    maxDistanceKm: Math.max(configuredMaxDistanceKm, minDistanceKm + 0.25),
+    coordinateDecimals,
+  };
+
+  return cachedGeolocationSettings;
 }
 
 function getFuzzSecret(): string {
@@ -41,13 +105,14 @@ function getFuzzSecret(): string {
 }
 
 function fuzzCoordinates(lat: number, lng: number): { lat: number; lng: number } {
+  const { minDistanceKm, maxDistanceKm, coordinateDecimals } = getGeolocationPrivacySettings();
   const seed = `${lat.toFixed(6)}|${lng.toFixed(6)}`;
   const digest = createHmac("sha256", getFuzzSecret()).update(seed).digest();
 
   const distanceSeed = digest.readUInt32BE(0) / 0xffffffff;
   const bearingSeed = digest.readUInt32BE(4) / 0xffffffff;
 
-  const distanceKm = 2 + distanceSeed * 6;
+  const distanceKm = minDistanceKm + distanceSeed * (maxDistanceKm - minDistanceKm);
   const angularDistance = distanceKm / 6371;
   const bearing = bearingSeed * Math.PI * 2;
 
@@ -67,8 +132,8 @@ function fuzzCoordinates(lat: number, lng: number): { lat: number; lng: number }
     );
 
   return {
-    lat: Number(toDegrees(fuzzedLatRad).toFixed(5)),
-    lng: Number(normalizeLng(toDegrees(fuzzedLngRad)).toFixed(5)),
+    lat: Number(toDegrees(fuzzedLatRad).toFixed(coordinateDecimals)),
+    lng: Number(normalizeLng(toDegrees(fuzzedLngRad)).toFixed(coordinateDecimals)),
   };
 }
 

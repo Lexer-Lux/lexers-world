@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { LexerEvent, ViewerMode } from "@/lib/types";
+import type { FxRatesErrorResponse, FxRatesResponse, LexerEvent, ViewerMode } from "@/lib/types";
 import { REDACTED_ADDRESS_LABEL } from "@/lib/privacy-constants";
 import { formatCost } from "@/lib/data";
 import FlipDate from "./FlipDate";
@@ -13,20 +13,6 @@ interface EventDetailViewProps {
   viewerMode: ViewerMode;
   onClose: () => void;
 }
-
-const FX_TO_USD: Record<string, number> = {
-  USD: 1,
-  CAD: 0.74,
-  GBP: 1.28,
-  EUR: 1.09,
-  JPY: 0.0067,
-  AUD: 0.66,
-  NZD: 0.62,
-  CHF: 1.13,
-  SEK: 0.095,
-  NOK: 0.094,
-  DKK: 0.146,
-};
 
 const COUNTRY_TO_CURRENCY: Record<string, string> = {
   US: "USD",
@@ -90,9 +76,42 @@ function detectLocalCurrency(fallbackCurrency: string): string {
   return COUNTRY_TO_CURRENCY[region] ?? fallbackCurrency;
 }
 
-function convertCost(amount: number, fromCurrency: string, toCurrency: string): number | null {
-  const fromRate = FX_TO_USD[fromCurrency];
-  const toRate = FX_TO_USD[toCurrency];
+function isFxRatesResponse(value: unknown): value is FxRatesResponse {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Partial<FxRatesResponse>;
+  if (
+    candidate.source !== "live" ||
+    !candidate.ratesToUsd ||
+    typeof candidate.ratesToUsd !== "object"
+  ) {
+    return false;
+  }
+
+  return Object.values(candidate.ratesToUsd).every(
+    (rate) => typeof rate === "number" && Number.isFinite(rate) && rate > 0
+  );
+}
+
+function isFxRatesErrorResponse(value: unknown): value is FxRatesErrorResponse {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Partial<FxRatesErrorResponse>;
+  return typeof candidate.error === "string" && candidate.error.trim().length > 0;
+}
+
+function convertCost(
+  amount: number,
+  fromCurrency: string,
+  toCurrency: string,
+  ratesToUsd: Record<string, number>
+): number | null {
+  const fromRate = ratesToUsd[fromCurrency];
+  const toRate = ratesToUsd[toCurrency];
 
   if (!fromRate || !toRate) {
     return null;
@@ -122,6 +141,9 @@ export default function EventDetailView({
   const [isDoorHovered, setIsDoorHovered] = useState(false);
   const [showLocalCost, setShowLocalCost] = useState(false);
   const [navigationHint, setNavigationHint] = useState<string | null>(null);
+  const [fxRatesToUsd, setFxRatesToUsd] = useState<Record<string, number> | null>(null);
+  const [fxLoadState, setFxLoadState] = useState<"loading" | "live" | "error">("loading");
+  const [fxError, setFxError] = useState<string | null>(null);
 
   const isOutsider = viewerMode === "outsider";
   const isLexerComingUnknown = event.isLexerComing === "?";
@@ -134,11 +156,18 @@ export default function EventDetailView({
 
   const localCurrency = useMemo(() => detectLocalCurrency(event.currency), [event.currency]);
   const convertedCost = useMemo(
-    () => convertCost(event.cost, event.currency, localCurrency),
-    [event.cost, event.currency, localCurrency]
+    () => {
+      if (!fxRatesToUsd) {
+        return null;
+      }
+
+      return convertCost(event.cost, event.currency, localCurrency, fxRatesToUsd);
+    },
+    [event.cost, event.currency, fxRatesToUsd, localCurrency]
   );
 
   const canConvertCost =
+    fxLoadState === "live" &&
     event.cost > 0 &&
     localCurrency !== event.currency &&
     convertedCost !== null &&
@@ -164,13 +193,70 @@ export default function EventDetailView({
     showLocalCost,
   ]);
 
+  useEffect(() => {
+    let active = true;
+
+    const loadFxRates = async () => {
+      try {
+        const response = await fetch("/api/fx", { cache: "no-store" });
+        if (!response.ok) {
+          const errorPayload = (await response.json()) as unknown;
+          if (active && isFxRatesErrorResponse(errorPayload)) {
+            setFxError(errorPayload.error);
+          } else if (active) {
+            setFxError("Live FX rates are unavailable.");
+          }
+          if (active) {
+            setFxRatesToUsd(null);
+            setFxLoadState("error");
+          }
+          return;
+        }
+
+        const payload = (await response.json()) as unknown;
+        if (!active) {
+          return;
+        }
+
+        if (!isFxRatesResponse(payload)) {
+          setFxError("Live FX rates are unavailable.");
+          setFxRatesToUsd(null);
+          setFxLoadState("error");
+          return;
+        }
+
+        setFxRatesToUsd(payload.ratesToUsd);
+        setFxLoadState("live");
+        setFxError(null);
+      } catch {
+        if (active) {
+          setFxError("Live FX rates are unavailable.");
+          setFxRatesToUsd(null);
+          setFxLoadState("error");
+        }
+      }
+    };
+
+    loadFxRates();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const shouldShowFxError = event.cost > 0 && localCurrency !== event.currency && fxLoadState === "error";
+
   const costHintText =
     event.cost === 0
       ? "No ticket fee"
+      : shouldShowFxError
+      ? "Live FX unavailable"
+      : fxLoadState === "loading" && localCurrency !== event.currency
+      ? "Loading live FX"
       : canConvertCost
       ? showLocalCost
         ? "Tap for source"
-        : `Tap for ${localCurrency}`
+        : `Tap for ${localCurrency} (live FX)`
       : "Base tier price";
 
   const mapUrl = useMemo(() => {
@@ -314,6 +400,12 @@ export default function EventDetailView({
           {navigationHint && (
             <p className="font-mono text-[11px] uppercase tracking-wide" style={{ color: "var(--neon-yellow)" }}>
               {navigationHint}
+            </p>
+          )}
+
+          {shouldShowFxError && fxError && (
+            <p className="font-mono text-[11px] uppercase tracking-wide" style={{ color: "var(--neon-yellow)" }}>
+              {fxError}
             </p>
           )}
         </div>

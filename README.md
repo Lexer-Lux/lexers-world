@@ -37,6 +37,14 @@ Optional auth/privacy env vars:
 - `INSIDER_PREVIEW_TOKEN` (required for insider mode in production)
 - `INSIDER_ALLOWLIST` (comma-separated X handles for manual insider approval; case-insensitive)
 - `NEXT_PUBLIC_LEXER_TWITTER_URL` (defaults to `https://x.com/LexerLux`)
+- `FUZZ_MIN_DISTANCE_KM` (defaults to `2`)
+- `FUZZ_MAX_DISTANCE_KM` (defaults to `8`)
+- `FUZZ_COORDINATE_DECIMALS` (defaults to `5`)
+
+Optional FX env vars:
+
+- `FX_PROVIDER_URL` (defaults to `https://open.er-api.com/v6/latest/USD`)
+- `FX_CACHE_TTL_SECONDS` (defaults to `21600` / 6 hours)
 
 3. Start dev server:
 
@@ -58,11 +66,18 @@ If you already have allowlist rows, run `supabase/allowlist-normalization.sql` o
 - `GET /api/events` defaults to outsider mode (privacy filtered):
   - `isLexerComing` returns `?`
   - coordinates are deterministic HMAC fuzzes based on `FUZZ_SECRET`
+  - fuzz radius and coordinate precision are configurable via `FUZZ_*` env vars
   - precise address is blackboxed
   - response headers include `x-lexer-viewer-mode` and `x-lexer-location-precision`
 - Insider preview mode:
   - request with `?viewer=insider` or header `x-lexer-viewer: insider`
   - if `INSIDER_PREVIEW_TOKEN` is set, also pass `token=...` or header `x-insider-preview-token`
+
+## Live FX Rates
+
+- `GET /api/fx` serves currency conversion rates for event-cost display in event detail views.
+- The API requires live rates from `FX_PROVIDER_URL` and returns `503` when unavailable.
+- Responses include `x-lexer-fx-source` with either `live` or `error`.
 
 ## Auth + Approval (Phase 4A)
 
