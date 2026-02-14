@@ -871,6 +871,17 @@ export default function Globe({
     material.depthWrite = true;
     material.blending = NormalBlending;
 
+    // Protect against three-globe's texture loader which runs
+    // `globeMaterial.color = null` after async load, destroying our color.
+    const safeColor = material.color.clone();
+    Object.defineProperty(material, "color", {
+      get: () => safeColor,
+      set: (v: unknown) => {
+        if (v != null && v instanceof Color) safeColor.copy(v);
+      },
+      configurable: true,
+    });
+
     if (useStylizedShader) {
       const detailStrength = getDetailStrength(performanceProfile.lowPower);
       const wireStrength = clamp(settings.wireStrength, 0, 4);
@@ -1516,7 +1527,7 @@ uniform float uWireStrength;`
       height={dimensions.height}
       backgroundColor="rgba(0,0,0,0)"
       backgroundImageUrl={null}
-      globeImageUrl={null}
+      globeImageUrl={EARTH_TEXTURE_URL}
       globeMaterial={globeMaterial ?? undefined}
       showGraticules={!paperEnabled}
       showAtmosphere={settings.showAtmosphere}
