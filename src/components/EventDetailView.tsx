@@ -304,7 +304,7 @@ export default function EventDetailView({
       />
 
       <div
-        className="panel-shell benday-overlay benday-cyan scanline relative flex w-full max-w-xl flex-col overflow-hidden
+        className="panel-shell benday-overlay benday-cyan scanline relative flex w-full max-w-2xl flex-col overflow-hidden
           max-h-[92vh] rounded-2xl animate-[fadeScale_0.25s_ease-out] sm:max-h-[90vh]"
         style={{
           background:
@@ -314,38 +314,36 @@ export default function EventDetailView({
             "0 0 40px rgba(176, 38, 255, 0.15), 0 0 80px rgba(255, 45, 117, 0.08)",
         }}
       >
-        <button
-          onClick={onClose}
-          aria-label="Close event detail"
-          className="absolute left-3 top-3 z-20 flex h-10 w-10 cursor-pointer items-center justify-center rounded border transition-colors"
-          style={{
-            color: "var(--neon-pink)",
-            borderColor: "var(--border-pink)",
-            background: "rgba(255, 45, 117, 0.08)",
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-        </button>
-
-        {event.recurrent && (
-          <div className="absolute right-3 top-3 z-20">
-            <RecurringBadge size={32} />
-          </div>
-        )}
-
         <div
-          className="relative z-[2] flex items-center justify-center px-4 py-3 sm:px-5"
+          className="relative z-[2] grid grid-cols-[auto_1fr_auto] items-center gap-2 px-3 py-2.5 sm:px-4"
           style={{ borderBottom: "1px solid rgba(255, 45, 117, 0.2)" }}
         >
+          <button
+            onClick={onClose}
+            aria-label="Close event detail"
+            className="relative z-20 flex h-11 w-11 cursor-pointer items-center justify-center rounded border transition-colors"
+            style={{
+              color: "var(--neon-pink)",
+              borderColor: "var(--border-pink)",
+              background: "rgba(255, 45, 117, 0.08)",
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <path d="M4 4l10 10M14 4L4 14" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+            </svg>
+          </button>
+
           <span className="font-mono text-[11px] uppercase tracking-[0.22em]" style={{ color: "var(--copy-muted)" }}>
-            EVENT
+            EVENT VIEW
           </span>
+
+          <div className="flex h-11 w-11 items-center justify-end">
+            {event.recurrent ? <RecurringBadge size={34} /> : null}
+          </div>
         </div>
 
         <div className="relative z-[2] flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
-          <div className="mb-4 flex items-center gap-2 px-12">
+          <div className="mb-4 flex items-center gap-2">
             {viewerMode === "insider" && event.isLexerComing === true && <LexerPresenceIcon size={20} />}
             <h1
               className="font-mono text-xl font-black uppercase tracking-wide text-neon-pink sm:text-2xl"

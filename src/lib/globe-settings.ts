@@ -15,16 +15,28 @@ export interface GlobeRuntimeSettings {
   pointRadius: number;
   pointAltitude: number;
   markerScale: number;
-  boundaryOpacity: number;
   showInternationalBorders: boolean;
   internationalBorderThickness: number;
+  internationalBorderAlpha: number;
   showAdmin1Divisions: boolean;
   admin1Thickness: number;
+  admin1Alpha: number;
   admin1DashLength: number;
   admin1DashGap: number;
   showAdmin2Divisions: boolean;
+  admin2Thickness: number;
+  admin2Alpha: number;
   admin2DotSize: number;
   admin2DotGap: number;
+  autoBorderLod: boolean;
+  borderVisibleHemisphereOnly: boolean;
+  borderQualityBias: number;
+  borderLodUpdateMs: number;
+  borderAdmin1MinScreenPx: number;
+  borderAdmin2MinScreenPx: number;
+  borderMaxFeaturesAdmin0: number;
+  borderMaxFeaturesAdmin1: number;
+  borderMaxFeaturesAdmin2: number;
   showCurvedTitle: boolean;
   enablePaperEffect: boolean;
   paperGrainStrength: number;
@@ -34,7 +46,7 @@ export interface GlobeRuntimeSettings {
 
 export const DEFAULT_GLOBE_RUNTIME_SETTINGS: GlobeRuntimeSettings = {
   zoomThreshold: 1.8,
-  autoRotate: true,
+  autoRotate: false,
   autoRotateSpeed: 0.05,
   dragRotateSpeed: 1.1,
   useInertia: false,
@@ -49,16 +61,28 @@ export const DEFAULT_GLOBE_RUNTIME_SETTINGS: GlobeRuntimeSettings = {
   pointRadius: 0.4,
   pointAltitude: 0.01,
   markerScale: 1,
-  boundaryOpacity: 1,
   showInternationalBorders: true,
-  internationalBorderThickness: 0.98,
+  internationalBorderThickness: 10,
+  internationalBorderAlpha: 1,
   showAdmin1Divisions: true,
-  admin1Thickness: 0.64,
-  admin1DashLength: 0.35,
-  admin1DashGap: 0.35,
-  showAdmin2Divisions: true,
-  admin2DotSize: 0.1,
-  admin2DotGap: 0.22,
+  admin1Thickness: 2,
+  admin1Alpha: 1,
+  admin1DashLength: 0.5,
+  admin1DashGap: 0.25,
+  showAdmin2Divisions: false,
+  admin2Thickness: 1.2,
+  admin2Alpha: 1,
+  admin2DotSize: 0.34,
+  admin2DotGap: 0.16,
+  autoBorderLod: true,
+  borderVisibleHemisphereOnly: true,
+  borderQualityBias: 0.52,
+  borderLodUpdateMs: 320,
+  borderAdmin1MinScreenPx: 0,
+  borderAdmin2MinScreenPx: 2,
+  borderMaxFeaturesAdmin0: 1200,
+  borderMaxFeaturesAdmin1: 5200,
+  borderMaxFeaturesAdmin2: 2200,
   showCurvedTitle: true,
   enablePaperEffect: false,
   paperGrainStrength: 0.75,

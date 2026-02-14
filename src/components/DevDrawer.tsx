@@ -29,17 +29,36 @@ function decimalPlaces(step: number): number {
 
 function HintDot({ help }: { help: string }) {
   return (
-    <span
-      title={help}
-      className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border font-mono text-[8px]"
-      style={{
-        color: "var(--neon-cyan)",
-        borderColor: "rgba(0, 240, 255, 0.36)",
-        background: "rgba(0, 240, 255, 0.08)",
-      }}
-      aria-label={help}
-    >
-      ?
+    <span className="group relative inline-flex items-center">
+      <button
+        type="button"
+        title={help}
+        className="inline-flex h-3.5 w-3.5 cursor-help items-center justify-center rounded-full border font-mono text-[8px]"
+        style={{
+          color: "var(--neon-cyan)",
+          borderColor: "rgba(0, 240, 255, 0.36)",
+          background: "rgba(0, 240, 255, 0.08)",
+        }}
+        aria-label={help}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+        }}
+      >
+        ?
+      </button>
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute left-full top-1/2 z-[70] ml-1.5 w-56 -translate-y-1/2 rounded border px-2 py-1 font-mono text-[9px] normal-case tracking-normal opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+        style={{
+          color: "var(--copy-primary)",
+          borderColor: "rgba(0, 240, 255, 0.3)",
+          background: "rgba(5, 10, 26, 0.96)",
+          boxShadow: "0 0 20px rgba(0, 240, 255, 0.2)",
+        }}
+      >
+        {help}
+      </span>
     </span>
   );
 }
@@ -73,10 +92,16 @@ function NumberControl({
   onChange: (value: number) => void;
 }) {
   const precision = decimalPlaces(step);
+  const minText = Number.isInteger(min) ? `${min}` : min.toFixed(decimalPlaces(step));
+  const maxText = Number.isInteger(max) ? `${max}` : max.toFixed(decimalPlaces(step));
+  const stepText = Number.isInteger(step) ? `${step}` : step.toString();
+  const tooltipText = help
+    ? `${help} Range ${minText} to ${maxText}. Step ${stepText}.`
+    : `Range ${minText} to ${maxText}. Step ${stepText}.`;
 
   return (
     <label htmlFor={id} className="grid gap-0.5">
-      <LabelRow label={label} help={help} />
+      <LabelRow label={label} help={tooltipText} />
       <div className="grid grid-cols-[1fr_auto] items-center gap-1.5">
         <input
           id={id}
@@ -371,7 +396,7 @@ export default function DevDrawer({
 
       <aside className={wrapperClassName}>
         <div
-          className="panel-shell benday-overlay relative h-full overflow-hidden border"
+          className="panel-shell benday-overlay relative flex h-full flex-col overflow-hidden border"
           style={{
             borderColor: "var(--border-cyan)",
             borderRadius: isMobile ? "16px 16px 0 0" : "0 12px 12px 0",
@@ -419,12 +444,9 @@ export default function DevDrawer({
             <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.12em]" style={{ color: "var(--copy-muted)" }}>
               Effects stack together. Toggle any combo.
             </p>
-            <p className="mt-0.5 font-mono text-[9px] tracking-[0.04em]" style={{ color: "var(--copy-muted)" }}>
-              Legacy top mode buttons are gone. Footer buttons reset Globe, VFX, or All.
-            </p>
           </div>
 
-          <div className="grid h-[calc(100%-38px)] gap-1 overflow-y-auto px-1.5 py-1.5">
+          <div className="grid min-h-0 flex-1 gap-1 overflow-y-auto px-1.5 py-1.5 pb-2">
             <SectionCard title="Globe Core" active>
               <ToggleControl
                 id="dev-auto-rotate"
@@ -438,7 +460,7 @@ export default function DevDrawer({
                 id="dev-auto-rotate-speed"
                 label="Idle spin speed"
                 min={0}
-                max={3}
+                max={6}
                 step={0.01}
                 value={globeSettings.autoRotateSpeed}
                 help="Higher values spin faster."
@@ -448,8 +470,8 @@ export default function DevDrawer({
               <NumberControl
                 id="dev-drag-rotate-speed"
                 label="Drag rotate speed"
-                min={0.1}
-                max={4}
+                min={0.05}
+                max={8}
                 step={0.01}
                 value={globeSettings.dragRotateSpeed}
                 help="How quickly drag input rotates the globe."
@@ -467,8 +489,8 @@ export default function DevDrawer({
               <NumberControl
                 id="dev-inertia-damping"
                 label="Inertia damping"
-                min={0.01}
-                max={0.9}
+                min={0.001}
+                max={0.99}
                 step={0.01}
                 value={globeSettings.inertiaDamping}
                 help="Lower values coast longer; higher values stop faster."
@@ -478,9 +500,9 @@ export default function DevDrawer({
               <NumberControl
                 id="dev-zoom-threshold"
                 label="Zoom threshold"
-                min={0.7}
-                max={5.5}
-                step={0.01}
+                min={1}
+                max={100}
+                step={0.1}
                 value={globeSettings.zoomThreshold}
                 help="Altitude where city stars switch to event dots."
                 onChange={(value) => onGlobeChange({ ...globeSettings, zoomThreshold: value })}
@@ -489,8 +511,8 @@ export default function DevDrawer({
               <NumberControl
                 id="dev-marker-scale"
                 label="Marker scale"
-                min={0.35}
-                max={3.2}
+                min={0.1}
+                max={5}
                 step={0.01}
                 value={globeSettings.markerScale}
                 help="Scales city star markers and labels."
@@ -500,9 +522,9 @@ export default function DevDrawer({
               <NumberControl
                 id="dev-point-radius"
                 label="Event dot size"
-                min={0.05}
-                max={2.4}
-                step={0.01}
+                min={0.02}
+                max={0.1}
+                step={0.001}
                 value={globeSettings.pointRadius}
                 help="Radius of event points when zoomed in."
                 onChange={(value) => onGlobeChange({ ...globeSettings, pointRadius: value })}
@@ -512,7 +534,7 @@ export default function DevDrawer({
                 id="dev-point-altitude"
                 label="Event dot lift"
                 min={0}
-                max={0.12}
+                max={0.1}
                 step={0.001}
                 value={globeSettings.pointAltitude}
                 help="How far event points float above the globe."
@@ -525,7 +547,7 @@ export default function DevDrawer({
                 id="dev-wire-strength"
                 label="Wire strength"
                 min={0}
-                max={3}
+                max={4}
                 step={0.01}
                 value={globeSettings.wireStrength}
                 help="Strength of longitude/latitude line tinting."
@@ -536,7 +558,7 @@ export default function DevDrawer({
                 id="dev-hatch-strength"
                 label="Hatch strength"
                 min={0}
-                max={3}
+                max={4}
                 step={0.01}
                 value={globeSettings.hatchStrength}
                 help="How dark crosshatch shadows appear on the night side."
@@ -546,8 +568,8 @@ export default function DevDrawer({
               <NumberControl
                 id="dev-crosshatch-density"
                 label="Crosshatch density"
-                min={0.1}
-                max={6}
+                min={0.05}
+                max={12}
                 step={0.01}
                 value={globeSettings.crosshatchDensity}
                 help="Pattern frequency of hatch strokes."
@@ -557,7 +579,7 @@ export default function DevDrawer({
               <NumberControl
                 id="dev-crosshatch-threshold"
                 label="Crosshatch threshold"
-                min={0.2}
+                min={0.05}
                 max={0.995}
                 step={0.001}
                 value={globeSettings.crosshatchThreshold}
@@ -566,111 +588,262 @@ export default function DevDrawer({
               />
             </SectionCard>
 
-            <SectionCard title="INT'L BORDERS" active={globeSettings.showInternationalBorders}>
+            <SectionCard
+              title="Borders"
+              active={
+                globeSettings.showInternationalBorders ||
+                globeSettings.showAdmin1Divisions ||
+                globeSettings.showAdmin2Divisions
+              }
+            >
+              <ToggleControl
+                id="dev-border-auto-lod"
+                label="Auto border LOD"
+                checked={globeSettings.autoBorderLod}
+                help="Automatically changes border detail by zoom + projected on-screen size."
+                onChange={(value) => onGlobeChange({ ...globeSettings, autoBorderLod: value })}
+              />
+
+              <ToggleControl
+                id="dev-border-front-only"
+                label="Front hemisphere"
+                checked={globeSettings.borderVisibleHemisphereOnly}
+                help="When enabled, render only border segments on the camera-facing hemisphere for all border layers."
+                onChange={(value) => onGlobeChange({ ...globeSettings, borderVisibleHemisphereOnly: value })}
+              />
+
+              <NumberControl
+                id="dev-border-quality-bias"
+                label="LOD quality bias"
+                min={0}
+                max={1}
+                step={0.01}
+                value={globeSettings.borderQualityBias}
+                help="Master detail/performance slider. Higher keeps more borders visible."
+                onChange={(value) => onGlobeChange({ ...globeSettings, borderQualityBias: value })}
+              />
+
+              <NumberControl
+                id="dev-border-lod-update-ms"
+                label="LOD update ms"
+                min={40}
+                max={1000}
+                step={10}
+                value={globeSettings.borderLodUpdateMs}
+                help="Throttle (ms) for recalculating which borders are visible while orbiting. Only matters when 'Front hemisphere' is on and you're actively dragging. Lower = smoother border pop-in during rotation but more CPU work. At rest, this does nothing."
+                onChange={(value) => onGlobeChange({ ...globeSettings, borderLodUpdateMs: value })}
+              />
+
+              <div
+                className="mt-1 border-t pt-1.5 font-mono text-[10px] uppercase tracking-[0.16em]"
+                style={{ color: "var(--neon-cyan)", borderColor: "rgba(0, 240, 255, 0.16)" }}
+              >
+                Intl Borders
+              </div>
+
               <ToggleControl
                 id="dev-show-international-borders"
                 label="Enabled"
                 checked={globeSettings.showInternationalBorders}
-                help="Show country outlines."
+                help="Show country boundaries and coastlines."
                 onChange={(value) => onGlobeChange({ ...globeSettings, showInternationalBorders: value })}
               />
 
               <NumberControl
                 id="dev-international-border-thickness"
-                label="Line thickness"
-                min={0.2}
-                max={2.5}
+                label="Int'l thickness"
+                min={0}
+                max={10}
                 step={0.01}
                 value={globeSettings.internationalBorderThickness}
-                help="Stroke width for international borders."
+                help="Stroke width for international borders and coastlines. Value is used directly."
                 onChange={(value) => onGlobeChange({ ...globeSettings, internationalBorderThickness: value })}
               />
 
               <NumberControl
-                id="dev-boundary-opacity"
-                label="Opacity"
+                id="dev-intl-border-alpha"
+                label="Int'l alpha"
                 min={0}
-                max={2.4}
+                max={1}
                 step={0.01}
-                value={globeSettings.boundaryOpacity}
-                help="Global alpha multiplier for all boundary layers."
-                onChange={(value) => onGlobeChange({ ...globeSettings, boundaryOpacity: value })}
+                value={globeSettings.internationalBorderAlpha}
+                help="Transparency for international borders and coastlines. 0 hides them, 1 is fully visible."
+                onChange={(value) => onGlobeChange({ ...globeSettings, internationalBorderAlpha: value })}
               />
-            </SectionCard>
 
-            <SectionCard title="1ST-LEVEL DIVISIONS" active={globeSettings.showAdmin1Divisions}>
+              <NumberControl
+                id="dev-border-max-admin0"
+                label="Max country features"
+                min={0}
+                max={2000}
+                step={10}
+                value={globeSettings.borderMaxFeaturesAdmin0}
+                help="Hard render cap for country/coast boundary features."
+                onChange={(value) => onGlobeChange({ ...globeSettings, borderMaxFeaturesAdmin0: Math.round(value) })}
+              />
+
+              <div
+                className="mt-1 border-t pt-1.5 font-mono text-[10px] uppercase tracking-[0.16em]"
+                style={{ color: "var(--neon-cyan)", borderColor: "rgba(0, 240, 255, 0.16)" }}
+              >
+                1st-Level Divisions
+              </div>
+
               <ToggleControl
                 id="dev-show-admin1"
                 label="Enabled"
                 checked={globeSettings.showAdmin1Divisions}
-                help="Show first-level admin boundaries."
+                help="Show states/provinces/regions."
                 onChange={(value) => onGlobeChange({ ...globeSettings, showAdmin1Divisions: value })}
               />
 
               <NumberControl
                 id="dev-admin1-thickness"
-                label="Line thickness"
-                min={0.1}
-                max={2}
+                label="1st thickness"
+                min={0}
+                max={10}
                 step={0.01}
                 value={globeSettings.admin1Thickness}
-                help="Stroke width for first-level divisions."
+                help="Stroke width for first-level division lines. Value is used directly."
                 onChange={(value) => onGlobeChange({ ...globeSettings, admin1Thickness: value })}
               />
 
               <NumberControl
+                id="dev-admin1-alpha"
+                label="1st alpha"
+                min={0}
+                max={1}
+                step={0.01}
+                value={globeSettings.admin1Alpha}
+                help="Transparency for first-level division lines. 0 hides them, 1 is fully visible."
+                onChange={(value) => onGlobeChange({ ...globeSettings, admin1Alpha: value })}
+              />
+
+              <NumberControl
                 id="dev-admin1-dash-length"
-                label="Dash length"
-                min={0.05}
-                max={0.95}
+                label="1st dash length"
+                min={0.01}
+                max={0.99}
                 step={0.01}
                 value={globeSettings.admin1DashLength}
-                help="Visible dash segment size."
+                help="Visible part of each dashed segment for first-level divisions."
                 onChange={(value) => onGlobeChange({ ...globeSettings, admin1DashLength: value })}
               />
 
               <NumberControl
                 id="dev-admin1-dash-gap"
-                label="Dash gap"
-                min={0.05}
-                max={0.95}
+                label="1st dash gap"
+                min={0.01}
+                max={0.99}
                 step={0.01}
                 value={globeSettings.admin1DashGap}
-                help="Gap between dash segments."
+                help="Gap between first-level dashed segments."
                 onChange={(value) => onGlobeChange({ ...globeSettings, admin1DashGap: value })}
               />
-            </SectionCard>
 
-            <SectionCard title="2ND-LEVEL DIVISIONS" active={globeSettings.showAdmin2Divisions}>
+              <NumberControl
+                id="dev-border-admin1-min-px"
+                label="1st min screen px"
+                min={0}
+                max={180}
+                step={1}
+                value={globeSettings.borderAdmin1MinScreenPx}
+                help="Minimum projected screen size before first-level features render. Higher hides tiny distant lines."
+                onChange={(value) => onGlobeChange({ ...globeSettings, borderAdmin1MinScreenPx: value })}
+              />
+
+              <NumberControl
+                id="dev-border-max-admin1"
+                label="Max 1st features"
+                min={80}
+                max={22000}
+                step={20}
+                value={globeSettings.borderMaxFeaturesAdmin1}
+                help="Hard render cap for first-level boundary features."
+                onChange={(value) => onGlobeChange({ ...globeSettings, borderMaxFeaturesAdmin1: Math.round(value) })}
+              />
+
+              <div
+                className="mt-1 border-t pt-1.5 font-mono text-[10px] uppercase tracking-[0.16em]"
+                style={{ color: "var(--neon-cyan)", borderColor: "rgba(0, 240, 255, 0.16)" }}
+              >
+                2nd-Level Divisions
+              </div>
+
               <ToggleControl
                 id="dev-show-admin2"
                 label="Enabled"
                 checked={globeSettings.showAdmin2Divisions}
-                help="Show second-level divisions as dotted arcs."
+                help="Show finer county/district-style boundaries with best-effort global fallback where true admin2 data is sparse."
                 onChange={(value) => onGlobeChange({ ...globeSettings, showAdmin2Divisions: value })}
               />
 
               <NumberControl
+                id="dev-admin2-thickness"
+                label="2nd thickness"
+                min={0.05}
+                max={25}
+                step={0.01}
+                value={globeSettings.admin2Thickness}
+                help="Dot diameter for second-level boundaries."
+                onChange={(value) => onGlobeChange({ ...globeSettings, admin2Thickness: value })}
+              />
+
+              <NumberControl
+                id="dev-admin2-alpha"
+                label="2nd alpha"
+                min={0}
+                max={1}
+                step={0.01}
+                value={globeSettings.admin2Alpha}
+                help="Transparency for second-level division lines. 0 hides them, 1 is fully visible."
+                onChange={(value) => onGlobeChange({ ...globeSettings, admin2Alpha: value })}
+              />
+
+              <NumberControl
                 id="dev-admin2-dot-size"
-                label="Dot size"
-                min={0.02}
-                max={0.8}
+                label="2nd dot size"
+                min={0.01}
+                max={0.99}
                 step={0.005}
                 value={globeSettings.admin2DotSize}
-                help="Size of each visible dot segment."
+                help="Controls how compact each second-level dot distribution appears along boundaries."
                 onChange={(value) => onGlobeChange({ ...globeSettings, admin2DotSize: value })}
               />
 
               <NumberControl
                 id="dev-admin2-dot-gap"
-                label="Dot gap"
-                min={0.04}
-                max={0.98}
+                label="2nd dot gap"
+                min={0.01}
+                max={0.99}
                 step={0.005}
                 value={globeSettings.admin2DotGap}
-                help="Gap between dot segments."
+                help="Spacing between second-level dots along boundaries."
                 onChange={(value) => onGlobeChange({ ...globeSettings, admin2DotGap: value })}
               />
+
+              <NumberControl
+                id="dev-border-admin2-min-px"
+                label="2nd min screen px"
+                min={0}
+                max={220}
+                step={1}
+                value={globeSettings.borderAdmin2MinScreenPx}
+                help="Minimum projected screen size before second-level features render."
+                onChange={(value) => onGlobeChange({ ...globeSettings, borderAdmin2MinScreenPx: value })}
+              />
+
+              <NumberControl
+                id="dev-border-max-admin2"
+                label="Max 2nd features"
+                min={80}
+                max={30000}
+                step={20}
+                value={globeSettings.borderMaxFeaturesAdmin2}
+                help="Hard render cap for second-level boundary features."
+                onChange={(value) => onGlobeChange({ ...globeSettings, borderMaxFeaturesAdmin2: Math.round(value) })}
+              />
+
             </SectionCard>
 
             <SectionCard title="Atmosphere" active>
@@ -694,7 +867,7 @@ export default function DevDrawer({
                 id="dev-atmosphere-altitude"
                 label="Atmosphere altitude"
                 min={0}
-                max={0.5}
+                max={0.6}
                 step={0.005}
                 value={globeSettings.atmosphereAltitude}
                 help="How far atmosphere expands from globe surface."
@@ -715,7 +888,7 @@ export default function DevDrawer({
                 id="dev-paper-enable"
                 label="Enable Paper"
                 checked={globeSettings.enablePaperEffect}
-                help="Applies paper grain + ink rendering style."
+                help="Switches the globe to a paper-comic shader with warm palette, grain, halftone dots, and ink contouring."
                 onChange={(value) => onGlobeChange({ ...globeSettings, enablePaperEffect: value })}
               />
 
@@ -723,7 +896,7 @@ export default function DevDrawer({
                 id="dev-paper-grain"
                 label="Grain"
                 min={0}
-                max={3}
+                max={5}
                 step={0.01}
                 value={globeSettings.paperGrainStrength}
                 help="Noise amount on paper surface."
@@ -734,7 +907,7 @@ export default function DevDrawer({
                 id="dev-paper-halftone"
                 label="Halftone"
                 min={0}
-                max={3}
+                max={5}
                 step={0.01}
                 value={globeSettings.paperHalftoneStrength}
                 help="Strength of halftone dots in darker regions."
@@ -745,7 +918,7 @@ export default function DevDrawer({
                 id="dev-paper-ink"
                 label="Ink weight"
                 min={0}
-                max={3}
+                max={5}
                 step={0.01}
                 value={globeSettings.paperInkStrength}
                 help="How bold contour ink appears."
@@ -1031,7 +1204,14 @@ export default function DevDrawer({
               />
             </SectionCard>
 
-            <div className="mt-0.5 grid grid-cols-3 gap-1">
+            <div
+              className="sticky bottom-0 mt-0.5 grid grid-cols-3 gap-1 border-t pt-1"
+              style={{
+                borderColor: "rgba(0, 240, 255, 0.16)",
+                background:
+                  "linear-gradient(180deg, rgba(8, 11, 24, 0) 0%, rgba(8, 11, 24, 0.92) 22%, rgba(8, 11, 24, 0.96) 100%)",
+              }}
+            >
               <ResetButton label="Reset Globe" onClick={() => onGlobeChange(DEFAULT_GLOBE_RUNTIME_SETTINGS)} />
               <ResetButton
                 label="Reset VFX"

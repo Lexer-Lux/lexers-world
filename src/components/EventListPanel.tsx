@@ -37,14 +37,21 @@ export default function EventListPanel({
 
   const panelClassName = useMemo(() => {
     if (layoutMode === "top") {
-      return "panel-shell benday-overlay scanline motion-lines absolute inset-x-0 top-0 h-[44vh] max-h-[420px] rounded-b-2xl pointer-events-auto overflow-hidden animate-[slideDown_0.3s_ease-out]";
+      return "panel-shell benday-overlay scanline motion-lines absolute inset-x-0 top-0 h-[44vh] max-h-[430px] rounded-b-2xl pointer-events-auto overflow-hidden animate-[slideDown_0.3s_ease-out]";
     }
 
     return "panel-shell benday-overlay scanline motion-lines absolute inset-y-0 right-0 h-full w-[min(92vw,360px)] rounded-l-2xl pointer-events-auto overflow-hidden animate-[slideIn_0.3s_ease-out]";
   }, [layoutMode]);
 
   const eventListClassName =
-    layoutMode === "top" ? "flex h-full flex-row gap-3 overflow-x-auto pb-1" : "flex flex-col gap-3 pb-1";
+    layoutMode === "top"
+      ? "flex h-full snap-x snap-mandatory flex-row gap-3 overflow-x-auto overflow-y-hidden pb-2 pr-1"
+      : "flex flex-col gap-3 pb-1";
+
+  const listViewportClassName =
+    layoutMode === "top"
+      ? "relative z-[2] flex-1 overflow-x-hidden overflow-y-hidden px-3 py-3 sm:px-4"
+      : "relative z-[2] flex-1 overflow-y-auto px-3 py-3 sm:px-4";
 
   return (
     <div className="fixed inset-0 z-20 pointer-events-none">
@@ -98,7 +105,7 @@ export default function EventListPanel({
           </div>
 
           {/* Event list */}
-          <div className="relative z-[2] flex-1 overflow-y-auto px-3 py-3 sm:px-4">
+          <div className={listViewportClassName}>
             {events.length === 0 ? (
               <p className="py-10 text-center font-mono text-sm" style={{ color: "rgba(255, 255, 255, 0.55)" }}>
                 nothing&apos;s here :( know about an event i might enjoy?{" "}
@@ -119,15 +126,17 @@ export default function EventListPanel({
                   <button
                     key={event.id}
                     onClick={() => onEventClick(event)}
-                    className="group/card benday-dense relative cursor-pointer rounded-lg p-3 text-left transition-all
-                      hover:scale-[1.015] hover:-translate-y-[1px] active:scale-[0.99] sm:p-4"
+                    className={`group/card benday-dense relative cursor-pointer rounded-lg p-3 text-left transition-all ${
+                      layoutMode === "top" ? "snap-start" : ""
+                    } hover:scale-[1.015] hover:-translate-y-[1px] active:scale-[0.99] sm:p-4`}
                     style={{
                       background: "linear-gradient(145deg, rgba(255, 45, 117, 0.09), rgba(176, 38, 255, 0.08))",
                       border: "1px solid rgba(255, 45, 117, 0.2)",
                       animation: `staggerUp 0.3s ease-out ${index * 0.06}s both`,
                       transition: "border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease",
-                      minWidth: layoutMode === "top" ? "min(84vw, 320px)" : "unset",
+                      minWidth: layoutMode === "top" ? "min(86vw, 330px)" : "unset",
                     }}
+                    data-layout={layoutMode}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.borderColor = "rgba(255, 45, 117, 0.45)";
                       e.currentTarget.style.boxShadow =

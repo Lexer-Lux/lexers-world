@@ -190,21 +190,43 @@ body {
    RECURRING BADGE ANIMATIONS
    ============================================ */
 
-@keyframes recArcErase {
-  0% { opacity: 1; stroke-dashoffset: 0; }
-  72% { opacity: 1; stroke-dashoffset: 1; }
-  100% { opacity: 0; stroke-dashoffset: 1; }
+@keyframes recArcSweep {
+  0% {
+    stroke-dashoffset: 0;
+    opacity: 0.95;
+  }
+  72% {
+    stroke-dashoffset: -1.04;
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: -1.04;
+    opacity: 0.2;
+  }
 }
 
-@keyframes recTipFade {
-  0%, 68% { opacity: 1; }
-  100% { opacity: 0; }
+@keyframes recTipPulse {
+  0%,
+  100% {
+    opacity: 0.78;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
-@keyframes recLetterReveal {
-  0%, 35% { opacity: 0; }
-  45%, 78% { opacity: 1; }
-  100% { opacity: 0; }
+@keyframes recLetterOrbit {
+  0%,
+  28% {
+    opacity: 0;
+  }
+  36%,
+  78% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 /* ============================================

@@ -1,22 +1,38 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface RecurringBadgeProps {
   size?: number;
 }
 
 export default function RecurringBadge({ size = 28 }: RecurringBadgeProps) {
-  const [isActive, setIsActive] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [hoverCapable, setHoverCapable] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const hoverMedia = window.matchMedia("(hover: hover) and (pointer: fine)");
+    const syncHoverCapability = () => setHoverCapable(hoverMedia.matches);
+    syncHoverCapability();
+    hoverMedia.addEventListener("change", syncHoverCapability);
+
+    return () => hoverMedia.removeEventListener("change", syncHoverCapability);
+  }, []);
+
+  const isActive = hoverCapable && isHovered;
 
   const cx = 50;
   const cy = 50;
   const r = 35;
-  const letters = "RECURRING!".split("");
+  const letters = "RECURRING".split("");
   const totalLetters = letters.length;
-  const loopDuration = 1.6;
-  const startAngle = -120;
-  const endAngle = 180;
+  const loopDuration = 1.4;
+  const startAngle = -122;
+  const endAngle = 186;
   const arcSpan = endAngle - startAngle;
 
   const letterPositions = letters.map((letter, i) => {
@@ -54,42 +70,73 @@ export default function RecurringBadge({ size = 28 }: RecurringBadgeProps) {
   return (
     <button
       type="button"
-      className="inline-block cursor-default"
+      className="inline-flex cursor-default items-center justify-center rounded-full"
       style={{ width: size, height: size }}
-      onMouseEnter={() => setIsActive(true)}
-      onMouseLeave={() => setIsActive(false)}
-      onFocus={() => setIsActive(true)}
-      onBlur={() => setIsActive(false)}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       aria-label="Recurring event"
     >
       <svg viewBox="0 0 100 100" width={size} height={size} className="overflow-visible">
+        <circle
+          cx={cx}
+          cy={cy}
+          r="24"
+          fill="none"
+          stroke="#7d2ba8"
+          strokeWidth="2"
+          opacity="0.7"
+        />
+
         <path
           d={arcPath}
           pathLength={1}
           fill="none"
-          stroke="#b026ff"
+          stroke="#ff2d75"
           strokeWidth="3"
           strokeLinecap="round"
           style={{
-            strokeDasharray: 1,
-            strokeDashoffset: 0,
-            animation: isActive ? `recArcErase ${loopDuration}s steps(${totalLetters}, end) infinite` : "none",
-            opacity: 1,
+            strokeDasharray: 1.04,
+            strokeDashoffset: isActive ? 0 : 1.04,
+            animation: isActive
+              ? `recArcSweep ${loopDuration}s cubic-bezier(0.4, 0, 0.2, 1) infinite`
+              : "none",
+            opacity: isActive ? 1 : 0,
+            transition: isActive ? "none" : "opacity 0.25s ease-out",
+            filter: isActive ? "drop-shadow(0 0 3px rgba(255, 45, 117, 0.55))" : "none",
           }}
         />
 
         <path
           d={`M ${ax1} ${ay1} L ${ex} ${ey} L ${ax2} ${ay2}`}
           fill="none"
-          stroke="#b026ff"
+          stroke="#ff2d75"
           strokeWidth="3"
           strokeLinecap="round"
           strokeLinejoin="round"
           style={{
-            animation: isActive ? `recTipFade ${loopDuration}s linear infinite` : "none",
-            opacity: 1,
+            animation: isActive ? `recTipPulse ${loopDuration}s linear infinite` : "none",
+            opacity: isActive ? 1 : 0,
+            transition: isActive ? "none" : "opacity 0.25s ease-out",
+            filter: isActive ? "drop-shadow(0 0 2px rgba(255, 45, 117, 0.5))" : "none",
           }}
         />
+
+        <text
+          x={cx}
+          y={cy + 1}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fill="#00f0ff"
+          fontFamily="monospace"
+          fontWeight="900"
+          fontSize="15"
+          style={{
+            letterSpacing: "0.08em",
+            filter: "drop-shadow(0 0 3px rgba(0, 240, 255, 0.45))",
+          }}
+        >
+          R
+        </text>
 
         {letterPositions.map(({ letter, x, y, rotation, delay }, i) => (
           <text
@@ -99,15 +146,15 @@ export default function RecurringBadge({ size = 28 }: RecurringBadgeProps) {
             textAnchor="middle"
             dominantBaseline="central"
             transform={`rotate(${rotation}, ${x}, ${y})`}
-            fill="#b026ff"
+            fill="#ff2d75"
             fontFamily="monospace"
             fontWeight="900"
-            fontSize="13"
+            fontSize="11"
             style={{
-              opacity: isActive ? 0 : 0,
-              animation: isActive ? `recLetterReveal ${loopDuration}s linear infinite` : "none",
+              opacity: isActive ? 1 : 0,
+              animation: isActive ? `recLetterOrbit ${loopDuration}s linear infinite` : "none",
               animationDelay: `${delay}s`,
-              filter: "drop-shadow(0 0 3px rgba(176, 38, 255, 0.6))",
+              filter: isActive ? "drop-shadow(0 0 3px rgba(255, 45, 117, 0.5))" : "none",
             }}
           >
             {letter}

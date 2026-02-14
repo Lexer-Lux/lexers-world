@@ -63,6 +63,7 @@ export default function Home() {
     "Outsider access only. Sign in with X to request insider approval."
   );
   const [approvedUsername, setApprovedUsername] = useState<string | undefined>(undefined);
+  const [fps, setFps] = useState<number | null>(null);
 
   // Fetch events, optionally with auth token
   const fetchEvents = useCallback(async (accessToken?: string) => {
@@ -176,6 +177,34 @@ export default function Home() {
 
     return () => subscription.unsubscribe();
   }, [fetchEvents]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    let animationFrameId = 0;
+    let frames = 0;
+    let sampleStart = performance.now();
+    let smoothedFps = 0;
+
+    const tick = (now: number) => {
+      frames += 1;
+      const elapsed = now - sampleStart;
+      if (elapsed >= 500) {
+        const instantFps = (frames * 1000) / elapsed;
+        smoothedFps = smoothedFps === 0 ? instantFps : smoothedFps * 0.72 + instantFps * 0.28;
+        setFps(smoothedFps);
+        frames = 0;
+        sampleStart = now;
+      }
+
+      animationFrameId = window.requestAnimationFrame(tick);
+    };
+
+    animationFrameId = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(animationFrameId);
+  }, []);
 
   const handleSignIn = async () => {
     const supabase = getSupabaseBrowserClient();
@@ -338,6 +367,32 @@ export default function Home() {
       {aestheticSettings.showBurstOverlay && (
         <div className="comic-burst-overlay absolute inset-0 pointer-events-none" />
       )}
+
+      <div
+        className="pointer-events-none fixed right-3 top-3 z-40 rounded border px-2 py-1 font-mono text-[11px] uppercase tracking-[0.12em]"
+        style={{
+          borderColor: "rgba(0, 240, 255, 0.28)",
+          background: "rgba(4, 8, 18, 0.66)",
+          color:
+            fps === null
+              ? "var(--copy-muted)"
+              : fps >= 54
+                ? "var(--neon-cyan)"
+                : fps >= 38
+                  ? "var(--neon-yellow)"
+                  : "var(--neon-pink)",
+          textShadow:
+            fps === null
+              ? "none"
+              : fps >= 54
+                ? "0 0 8px rgba(0, 240, 255, 0.35)"
+                : fps >= 38
+                  ? "0 0 8px rgba(255, 225, 86, 0.35)"
+                  : "0 0 8px rgba(255, 45, 117, 0.35)",
+        }}
+      >
+        FPS {fps === null ? "--" : Math.round(fps)}
+      </div>
 
       <Globe
         events={events}
