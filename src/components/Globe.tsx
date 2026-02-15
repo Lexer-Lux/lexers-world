@@ -730,8 +730,8 @@ lw_base += terminatorColor * terminatorBand * (0.9 + uDetailStrength * 0.6);
 
 float lon = atan(worldNormal.z, worldNormal.x);
 float lat = asin(clamp(worldNormal.y, -1.0, 1.0));
-float lonLine = 1.0 - smoothstep(0.88, 0.99, abs(sin(lon * 11.0)));
-float latLine = 1.0 - smoothstep(0.9, 0.995, abs(sin(lat * 10.0)));
+float lonLine = 1.0 - smoothstep(0.0, 0.14, abs(sin(lon * 11.0)));
+float latLine = 1.0 - smoothstep(0.0, 0.11, abs(sin(lat * 10.0)));
 float wireMask = max(lonLine, latLine) * uWireStrength * (0.45 + uDetailStrength * 0.8);
 vec3 wireColor = mix(vec3(0.16, 0.84, 1.0), vec3(0.73, 0.92, 1.0), smoothstep(-0.2, 0.5, sunDot));
 lw_base = mix(lw_base, wireColor, clamp(wireMask, 0.0, 1.0));
@@ -778,8 +778,8 @@ float grainCentered = (grainNoise - 0.5) * ${grainStrength};
 float lon = atan(worldNormal.z, worldNormal.x);
 float lat = asin(clamp(worldNormal.y, -1.0, 1.0));
 float contour = max(
-  1.0 - smoothstep(0.93, 0.995, abs(sin(lon * 8.8))),
-  1.0 - smoothstep(0.93, 0.995, abs(sin(lat * 8.2)))
+  1.0 - smoothstep(0.0, 0.14, abs(sin(lon * 8.8))),
+  1.0 - smoothstep(0.0, 0.11, abs(sin(lat * 8.2)))
 ) * (0.25 + uWireStrength * 0.75);
 
 float dots = abs(sin((vWorldPosition.x + vWorldPosition.y) * 0.22) * sin((vWorldPosition.y - vWorldPosition.z) * 0.19));
