@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import {
   AestheticRuntimeSettings,
@@ -10,6 +10,44 @@ import {
   DEFAULT_GLOBE_RUNTIME_SETTINGS,
   GlobeRuntimeSettings,
 } from "@/lib/globe-settings";
+
+type SliderOverrides = Record<string, { min?: number; max?: number; step?: number }>;
+
+const SLIDER_OVERRIDES_KEY = "lw-slider-overrides";
+
+function loadSliderOverrides(): SliderOverrides {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = localStorage.getItem(SLIDER_OVERRIDES_KEY);
+    return raw ? (JSON.parse(raw) as SliderOverrides) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveSliderOverrides(overrides: SliderOverrides): void {
+  try {
+    if (Object.keys(overrides).length === 0) {
+      localStorage.removeItem(SLIDER_OVERRIDES_KEY);
+    } else {
+      localStorage.setItem(SLIDER_OVERRIDES_KEY, JSON.stringify(overrides));
+    }
+  } catch {
+    // localStorage may be full or unavailable
+  }
+}
+
+interface SliderConfigContext {
+  configMode: boolean;
+  overrides: SliderOverrides;
+  onOverrideChange: (id: string, patch: { min?: number; max?: number; step?: number } | null) => void;
+}
+
+const SliderConfigCtx = createContext<SliderConfigContext>({
+  configMode: false,
+  overrides: {},
+  onOverrideChange: () => {},
+});
 
 interface DevDrawerProps {
   globeSettings: GlobeRuntimeSettings;
@@ -72,12 +110,47 @@ function LabelRow({ label, help }: { label: string; help?: string }) {
   );
 }
 
+function ConfigInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <label className="grid gap-px">
+      <span
+        className="font-mono text-[7px] uppercase tracking-[0.12em]"
+        style={{ color: "var(--copy-muted)" }}
+      >
+        {label}
+      </span>
+      <input
+        type="number"
+        step="any"
+        value={value}
+        onChange={(e) => {
+          const v = Number(e.target.value);
+          if (Number.isFinite(v)) onChange(v);
+        }}
+        className="w-full rounded border bg-black/40 px-1 py-0.5 font-mono text-[8px]"
+        style={{
+          color: "var(--neon-cyan)",
+          borderColor: "rgba(0, 240, 255, 0.25)",
+        }}
+      />
+    </label>
+  );
+}
+
 function NumberControl({
   id,
   label,
-  min,
-  max,
-  step,
+  min: hardMin,
+  max: hardMax,
+  step: hardStep,
   value,
   help,
   onChange,
@@ -91,6 +164,11 @@ function NumberControl({
   help?: string;
   onChange: (value: number) => void;
 }) {
+  const { configMode, overrides: allOverrides, onOverrideChange } = useContext(SliderConfigCtx);
+  const myOverrides = allOverrides[id];
+  const min = myOverrides?.min ?? hardMin;
+  const max = myOverrides?.max ?? hardMax;
+  const step = myOverrides?.step ?? hardStep;
   const precision = decimalPlaces(step);
   const minText = Number.isInteger(min) ? `${min}` : min.toFixed(decimalPlaces(step));
   const maxText = Number.isInteger(max) ? `${max}` : max.toFixed(decimalPlaces(step));
@@ -134,6 +212,50 @@ function NumberControl({
           }}
         />
       </div>
+      {configMode && (
+        <div className="mt-0.5 grid grid-cols-[1fr_1fr_1fr_auto] gap-1">
+          <ConfigInput
+            label="min"
+            value={min}
+            onChange={(v) =>
+              onOverrideChange(id, { ...myOverrides, min: v })
+            }
+          />
+          <ConfigInput
+            label="max"
+            value={max}
+            onChange={(v) =>
+              onOverrideChange(id, { ...myOverrides, max: v })
+            }
+          />
+          <ConfigInput
+            label="step"
+            value={step}
+            onChange={(v) =>
+              onOverrideChange(id, { ...myOverrides, step: v })
+            }
+          />
+          {myOverrides && (
+            <button
+              type="button"
+              className="mt-auto mb-0.5 cursor-pointer rounded border px-1 py-0.5 font-mono text-[7px] uppercase"
+              style={{
+                color: "var(--neon-pink)",
+                borderColor: "var(--border-pink)",
+                background: "rgba(255, 45, 117, 0.08)",
+              }}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onOverrideChange(id, null);
+              }}
+              title="Reset to hardcoded defaults"
+            >
+              RST
+            </button>
+          )}
+        </div>
+      )}
     </label>
   );
 }
@@ -268,6 +390,24 @@ export default function DevDrawer({
   const [open, setOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [showTabHint, setShowTabHint] = useState(true);
+  const [configMode, setConfigMode] = useState(false);
+  const [sliderOverrides, setSliderOverrides] = useState<SliderOverrides>(loadSliderOverrides);
+
+  const handleOverrideChange = useCallback(
+    (id: string, patch: { min?: number; max?: number; step?: number } | null) => {
+      setSliderOverrides((prev) => {
+        const next = { ...prev };
+        if (patch === null) {
+          delete next[id];
+        } else {
+          next[id] = patch;
+        }
+        saveSliderOverrides(next);
+        return next;
+      });
+    },
+    []
+  );
 
   useEffect(() => {
     const mobileMedia = window.matchMedia("(max-width: 767px)");
@@ -444,8 +584,19 @@ export default function DevDrawer({
             <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.12em]" style={{ color: "var(--copy-muted)" }}>
               Effects stack together. Toggle any combo.
             </p>
+
+            <div className="mt-1 flex items-center gap-2">
+              <ToggleControl
+                id="dev-config-mode"
+                label="Config mode"
+                checked={configMode}
+                help="Show editable min/max/step fields on each slider."
+                onChange={setConfigMode}
+              />
+            </div>
           </div>
 
+          <SliderConfigCtx.Provider value={{ configMode, overrides: sliderOverrides, onOverrideChange: handleOverrideChange }}>
           <div className="grid min-h-0 flex-1 gap-1 overflow-y-auto px-1.5 py-1.5 pb-2">
             <SectionCard title="Globe Core" active>
               <ToggleControl
@@ -469,12 +620,12 @@ export default function DevDrawer({
 
               <NumberControl
                 id="dev-drag-rotate-speed"
-                label="Drag rotate speed"
+                label="Drag sensitivity"
                 min={0.05}
                 max={8}
                 step={0.01}
                 value={globeSettings.dragRotateSpeed}
-                help="How quickly drag input rotates the globe."
+                help="Multiplier on globe drag sensitivity."
                 onChange={(value) => onGlobeChange({ ...globeSettings, dragRotateSpeed: value })}
               />
 
@@ -500,9 +651,9 @@ export default function DevDrawer({
               <NumberControl
                 id="dev-zoom-threshold"
                 label="Zoom threshold"
-                min={1}
-                max={100}
-                step={0.1}
+                min={0.3}
+                max={5}
+                step={0.05}
                 value={globeSettings.zoomThreshold}
                 help="Altitude where city stars switch to event dots."
                 onChange={(value) => onGlobeChange({ ...globeSettings, zoomThreshold: value })}
@@ -522,9 +673,9 @@ export default function DevDrawer({
               <NumberControl
                 id="dev-point-radius"
                 label="Event dot size"
-                min={0.02}
-                max={0.03}
-                step={0.001}
+                min={0.01}
+                max={0.05}
+                step={0.005}
                 value={globeSettings.pointRadius}
                 help="Radius of event points when zoomed in."
                 onChange={(value) => onGlobeChange({ ...globeSettings, pointRadius: value })}
@@ -1205,27 +1356,39 @@ export default function DevDrawer({
             </SectionCard>
 
             <div
-              className="sticky bottom-0 mt-0.5 grid grid-cols-3 gap-1 border-t pt-1"
+              className="sticky bottom-0 mt-0.5 grid gap-1 border-t pt-1"
               style={{
                 borderColor: "rgba(0, 240, 255, 0.16)",
                 background:
                   "linear-gradient(180deg, rgba(8, 11, 24, 0) 0%, rgba(8, 11, 24, 0.92) 22%, rgba(8, 11, 24, 0.96) 100%)",
               }}
             >
-              <ResetButton label="Reset Globe" onClick={() => onGlobeChange(DEFAULT_GLOBE_RUNTIME_SETTINGS)} />
-              <ResetButton
-                label="Reset VFX"
-                onClick={() => onAestheticChange(DEFAULT_AESTHETIC_RUNTIME_SETTINGS)}
-              />
-              <ResetButton
-                label="Reset All"
-                onClick={() => {
-                  onGlobeChange(DEFAULT_GLOBE_RUNTIME_SETTINGS);
-                  onAestheticChange(DEFAULT_AESTHETIC_RUNTIME_SETTINGS);
-                }}
-              />
+              <div className="grid grid-cols-3 gap-1">
+                <ResetButton label="Reset Globe" onClick={() => onGlobeChange(DEFAULT_GLOBE_RUNTIME_SETTINGS)} />
+                <ResetButton
+                  label="Reset VFX"
+                  onClick={() => onAestheticChange(DEFAULT_AESTHETIC_RUNTIME_SETTINGS)}
+                />
+                <ResetButton
+                  label="Reset All"
+                  onClick={() => {
+                    onGlobeChange(DEFAULT_GLOBE_RUNTIME_SETTINGS);
+                    onAestheticChange(DEFAULT_AESTHETIC_RUNTIME_SETTINGS);
+                  }}
+                />
+              </div>
+              {configMode && Object.keys(sliderOverrides).length > 0 && (
+                <ResetButton
+                  label="Reset Config"
+                  onClick={() => {
+                    setSliderOverrides({});
+                    saveSliderOverrides({});
+                  }}
+                />
+              )}
             </div>
           </div>
+          </SliderConfigCtx.Provider>
         </div>
       </aside>
     </>

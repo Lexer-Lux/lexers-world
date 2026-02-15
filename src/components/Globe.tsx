@@ -747,10 +747,7 @@ float rim = pow(1.0 - max(dot(worldNormal, normalize(cameraPosition - vWorldPosi
 lw_base += vec3(0.0, 0.7, 1.0) * rim * 0.2;
 lw_base = max(lw_base, vec3(0.15, 0.16, 0.2));
 
-diffuseColor.rgb = lw_base;
-diffuseColor.a = 1.0;
-
-#include <dithering_fragment>`;
+gl_FragColor = vec4(lw_base, 1.0);`;
 }
 
 function buildPaperFragmentBody(settings: GlobeRuntimeSettings, lowPower: boolean): string {
@@ -807,11 +804,7 @@ colorized = mix(colorized, colorized * 0.65, hatchMask * nightMix * uHatchStreng
 colorized = mix(colorized, inkColor, contour * ${inkStrength} * 0.65);
 colorized = mix(colorized, vec3(0.84, 0.42, 0.21), terminatorBand * 0.2);
 
-diffuseColor.rgb = mix(lw_paperBase, colorized, 0.97);
-diffuseColor.rgb = clamp(diffuseColor.rgb, 0.0, 1.0);
-diffuseColor.a = 1.0;
-
-#include <dithering_fragment>`;
+gl_FragColor = vec4(clamp(mix(lw_paperBase, colorized, 0.97), 0.0, 1.0), 1.0);`;
 }
 
 function buildFragmentBody(settings: GlobeRuntimeSettings, lowPower: boolean): string {
@@ -842,6 +835,7 @@ export default function Globe({
   const [coastBoundaryPaths, setCoastBoundaryPaths] = useState<BoundaryPath[]>([]);
   const [admin1BoundaryPaths, setAdmin1BoundaryPaths] = useState<BoundaryPath[]>([]);
   const [admin2BoundaryPaths, setAdmin2BoundaryPaths] = useState<BoundaryPath[]>([]);
+  const dragRotateSpeedRef = useRef(settings.dragRotateSpeed);
   const lastPovEmitRef = useRef(0);
   const lastAltitudeRef = useRef(2.5);
   const lastAltitudeStateEmitRef = useRef(0);
@@ -871,6 +865,10 @@ export default function Globe({
   useEffect(() => {
     onAltitudeChangeRef.current = onAltitudeChange;
   }, [onAltitudeChange]);
+
+  useEffect(() => {
+    dragRotateSpeedRef.current = settings.dragRotateSpeed;
+  }, [settings.dragRotateSpeed]);
 
   const globeMaterial = useMemo(() => {
     const palette = getMaterialPalette(paperEnabled);
@@ -938,7 +936,7 @@ uniform float uHatchStrength;
 uniform float uDetailStrength;
 uniform float uWireStrength;`
           )
-          .replace("#include <dithering_fragment>", fragmentBody);
+          .replace("#include <opaque_fragment>", fragmentBody);
       };
 
       material.customProgramCacheKey = () =>
@@ -1292,6 +1290,7 @@ uniform float uWireStrength;`
 
     const handleControlsChange = () => {
       const pov = globe.pointOfView();
+      controls.rotateSpeed = pov.altitude * 0.3 * dragRotateSpeedRef.current;
       const now = performance.now();
       const altitudeDelta = Math.abs(lastAltitudeRef.current - pov.altitude);
 
@@ -1347,13 +1346,11 @@ uniform float uWireStrength;`
 
     controls.autoRotate = settings.autoRotate;
     controls.autoRotateSpeed = settings.autoRotateSpeed;
-    controls.rotateSpeed = settings.dragRotateSpeed;
     controls.enableDamping = settings.useInertia;
     controls.dampingFactor = settings.useInertia ? settings.inertiaDamping : 0;
   }, [
     settings.autoRotate,
     settings.autoRotateSpeed,
-    settings.dragRotateSpeed,
     settings.inertiaDamping,
     settings.useInertia,
   ]);
