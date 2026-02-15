@@ -523,7 +523,7 @@ export default function DevDrawer({
                 id="dev-point-radius"
                 label="Event dot size"
                 min={0.02}
-                max={0.1}
+                max={0.03}
                 step={0.001}
                 value={globeSettings.pointRadius}
                 help="Radius of event points when zoomed in."
@@ -534,7 +534,7 @@ export default function DevDrawer({
                 id="dev-point-altitude"
                 label="Event dot lift"
                 min={0}
-                max={0.1}
+                max={0.01}
                 step={0.001}
                 value={globeSettings.pointAltitude}
                 help="How far event points float above the globe."

@@ -708,17 +708,25 @@ vec3 dayColor = vec3(0.12, 0.56, 1.0);
 vec3 twilightColor = vec3(0.91, 0.3, 0.55);
 vec3 nightColor = vec3(0.015, 0.026, 0.07);
 
+// Re-read texture directly to avoid dependence on diffuse uniform
+// (three-globe sets material.color = null after async texture load)
+#ifdef USE_MAP
+vec3 lw_base = texture2D(map, vMapUv).rgb;
+#else
+vec3 lw_base = diffuseColor.rgb;
+#endif
+
 vec3 ink = mix(nightColor, dayColor, dayMix);
 ink = mix(ink, twilightColor, smoothstep(-0.08, 0.08, sunDot) * 0.42);
 vec3 lightingTint = mix(vec3(0.7, 0.74, 0.82), vec3(1.06, 1.03, 0.98), dayMix);
-diffuseColor.rgb *= lightingTint;
-diffuseColor.rgb = mix(diffuseColor.rgb, ink, 0.08);
-diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.68, 0.72, 0.8), nightBand * 0.2);
+lw_base *= lightingTint;
+lw_base = mix(lw_base, ink, 0.08);
+lw_base = mix(lw_base, lw_base * vec3(0.68, 0.72, 0.8), nightBand * 0.2);
 
 float terminatorNoise = sin(vWorldPosition.x * 0.07 + vWorldPosition.y * 0.11 + vWorldPosition.z * 0.09) * 0.5 + 0.5;
 float terminatorBand = (1.0 - smoothstep(0.0, 0.1, abs(sunDot))) * mix(0.9, 1.34, terminatorNoise);
 vec3 terminatorColor = vec3(1.0, 0.57, 0.18);
-diffuseColor.rgb += terminatorColor * terminatorBand * (0.9 + uDetailStrength * 0.6);
+lw_base += terminatorColor * terminatorBand * (0.9 + uDetailStrength * 0.6);
 
 float lon = atan(worldNormal.z, worldNormal.x);
 float lat = asin(clamp(worldNormal.y, -1.0, 1.0));
@@ -726,18 +734,20 @@ float lonLine = 1.0 - smoothstep(0.88, 0.99, abs(sin(lon * 11.0)));
 float latLine = 1.0 - smoothstep(0.9, 0.995, abs(sin(lat * 10.0)));
 float wireMask = max(lonLine, latLine) * uWireStrength * (0.45 + uDetailStrength * 0.8);
 vec3 wireColor = mix(vec3(0.16, 0.84, 1.0), vec3(0.73, 0.92, 1.0), smoothstep(-0.2, 0.5, sunDot));
-diffuseColor.rgb = mix(diffuseColor.rgb, wireColor, clamp(wireMask, 0.0, 1.0));
+lw_base = mix(lw_base, wireColor, clamp(wireMask, 0.0, 1.0));
 
 float hatchA = abs(sin((vWorldPosition.x + vWorldPosition.y) * (0.23 * ${crosshatchDensity})));
 float hatchB = abs(sin((vWorldPosition.x - vWorldPosition.z) * (0.29 * ${crosshatchDensity})));
 float hatchC = abs(sin((vWorldPosition.y + vWorldPosition.z) * (0.19 * ${crosshatchDensity})));
 float hatchMask = clamp(step(${thresholdA}, hatchA) * 0.45 + step(${thresholdB}, hatchB) * 0.35 + step(${thresholdC}, hatchC) * 0.2, 0.0, 1.0);
 float hatchAmount = (0.01 + nightMix * 0.3) * uHatchStrength * (0.14 + uDetailStrength * 0.34);
-diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.3, hatchMask * hatchAmount);
+lw_base = mix(lw_base, lw_base * 0.3, hatchMask * hatchAmount);
 
 float rim = pow(1.0 - max(dot(worldNormal, normalize(cameraPosition - vWorldPosition)), 0.0), 2.1);
-diffuseColor.rgb += vec3(0.0, 0.7, 1.0) * rim * 0.2;
-diffuseColor.rgb = max(diffuseColor.rgb, vec3(0.15, 0.16, 0.2));
+lw_base += vec3(0.0, 0.7, 1.0) * rim * 0.2;
+lw_base = max(lw_base, vec3(0.15, 0.16, 0.2));
+
+diffuseColor.rgb = lw_base;
 diffuseColor.a = 1.0;
 
 #include <dithering_fragment>`;
@@ -783,6 +793,13 @@ float hatchC = abs(sin((vWorldPosition.y + vWorldPosition.z) * (0.16 * ${crossha
 float hatchMask = clamp(step(${crosshatchThreshold}, hatchA) * 0.5 + step(${crosshatchThreshold}, hatchB) * 0.35 + step(${crosshatchThreshold}, hatchC) * 0.15, 0.0, 1.0);
 float terminatorBand = 1.0 - smoothstep(0.0, 0.09, abs(sunDot));
 
+// Re-read texture directly to avoid dependence on diffuse uniform
+#ifdef USE_MAP
+vec3 lw_paperBase = texture2D(map, vMapUv).rgb;
+#else
+vec3 lw_paperBase = diffuseColor.rgb;
+#endif
+
 vec3 colorized = mix(paperNight, paperDay, dayMix);
 colorized += vec3(grainCentered);
 colorized = mix(colorized, colorized * 0.74, halftone * 0.5);
@@ -790,7 +807,7 @@ colorized = mix(colorized, colorized * 0.65, hatchMask * nightMix * uHatchStreng
 colorized = mix(colorized, inkColor, contour * ${inkStrength} * 0.65);
 colorized = mix(colorized, vec3(0.84, 0.42, 0.21), terminatorBand * 0.2);
 
-diffuseColor.rgb = mix(diffuseColor.rgb, colorized, 0.97);
+diffuseColor.rgb = mix(lw_paperBase, colorized, 0.97);
 diffuseColor.rgb = clamp(diffuseColor.rgb, 0.0, 1.0);
 diffuseColor.a = 1.0;
 
@@ -871,17 +888,6 @@ export default function Globe({
     material.depthWrite = true;
     material.blending = NormalBlending;
 
-    // Protect against three-globe's texture loader which runs
-    // `globeMaterial.color = null` after async load, destroying our color.
-    const safeColor = material.color.clone();
-    Object.defineProperty(material, "color", {
-      get: () => safeColor,
-      set: (v: unknown) => {
-        if (v != null && v instanceof Color) safeColor.copy(v);
-      },
-      configurable: true,
-    });
-
     if (useStylizedShader) {
       const detailStrength = getDetailStrength(performanceProfile.lowPower);
       const wireStrength = clamp(settings.wireStrength, 0, 4);
@@ -916,8 +922,9 @@ varying vec3 vWorldPosition;`
           .replace(
             "#include <worldpos_vertex>",
             `#include <worldpos_vertex>
+vec4 lw_wp = modelMatrix * vec4(transformed, 1.0);
 vWorldNormal = normalize(mat3(modelMatrix) * normal);
-vWorldPosition = worldPosition.xyz;`
+vWorldPosition = lw_wp.xyz;`
           );
 
         shader.fragmentShader = shader.fragmentShader
