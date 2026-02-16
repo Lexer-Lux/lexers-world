@@ -718,7 +718,7 @@ vec3 lw_base = diffuseColor.rgb;
 
 vec3 ink = mix(nightColor, dayColor, dayMix);
 ink = mix(ink, twilightColor, smoothstep(-0.08, 0.08, sunDot) * 0.42);
-vec3 lightingTint = mix(vec3(0.78, 0.80, 0.88), vec3(1.06, 1.03, 0.98), dayMix);
+vec3 lightingTint = mix(vec3(0.88, 0.87, 0.93), vec3(1.06, 1.03, 0.98), dayMix);
 lw_base *= lightingTint;
 lw_base = mix(lw_base, ink, 0.04);
 lw_base = mix(lw_base, lw_base * vec3(0.68, 0.72, 0.8), nightBand * 0.12);
@@ -732,7 +732,7 @@ float lon = atan(worldNormal.z, worldNormal.x);
 float lat = asin(clamp(worldNormal.y, -1.0, 1.0));
 float lonLine = 1.0 - smoothstep(0.0, 0.14, abs(sin(lon * 11.0)));
 float latLine = 1.0 - smoothstep(0.0, 0.11, abs(sin(lat * 10.0)));
-float wireMask = max(lonLine, latLine) * uWireStrength * (0.45 + uDetailStrength * 0.8);
+float wireMask = max(lonLine, latLine) * uWireStrength * (0.15 + uDetailStrength * 0.15);
 vec3 wireColor = mix(vec3(0.16, 0.84, 1.0), vec3(0.73, 0.92, 1.0), smoothstep(-0.2, 0.5, sunDot));
 lw_base = mix(lw_base, wireColor, clamp(wireMask, 0.0, 1.0));
 
@@ -745,7 +745,7 @@ lw_base = mix(lw_base, lw_base * 0.3, hatchMask * hatchAmount);
 
 float rim = pow(1.0 - max(dot(worldNormal, normalize(cameraPosition - vWorldPosition)), 0.0), 2.1);
 lw_base += vec3(0.0, 0.7, 1.0) * rim * 0.2;
-lw_base = max(lw_base, vec3(0.15, 0.16, 0.2));
+lw_base = max(lw_base, vec3(0.03, 0.03, 0.05));
 
 gl_FragColor = vec4(lw_base, 1.0);`;
 }
