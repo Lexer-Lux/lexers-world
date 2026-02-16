@@ -718,15 +718,15 @@ vec3 lw_base = diffuseColor.rgb;
 
 vec3 ink = mix(nightColor, dayColor, dayMix);
 ink = mix(ink, twilightColor, smoothstep(-0.08, 0.08, sunDot) * 0.42);
-vec3 lightingTint = mix(vec3(0.7, 0.74, 0.82), vec3(1.06, 1.03, 0.98), dayMix);
+vec3 lightingTint = mix(vec3(0.78, 0.80, 0.88), vec3(1.06, 1.03, 0.98), dayMix);
 lw_base *= lightingTint;
-lw_base = mix(lw_base, ink, 0.08);
-lw_base = mix(lw_base, lw_base * vec3(0.68, 0.72, 0.8), nightBand * 0.2);
+lw_base = mix(lw_base, ink, 0.04);
+lw_base = mix(lw_base, lw_base * vec3(0.68, 0.72, 0.8), nightBand * 0.12);
 
 float terminatorNoise = sin(vWorldPosition.x * 0.07 + vWorldPosition.y * 0.11 + vWorldPosition.z * 0.09) * 0.5 + 0.5;
-float terminatorBand = (1.0 - smoothstep(0.0, 0.1, abs(sunDot))) * mix(0.9, 1.34, terminatorNoise);
+float terminatorBand = (1.0 - smoothstep(0.0, 0.1, abs(sunDot))) * mix(0.6, 1.0, terminatorNoise);
 vec3 terminatorColor = vec3(1.0, 0.57, 0.18);
-lw_base += terminatorColor * terminatorBand * (0.9 + uDetailStrength * 0.6);
+lw_base += terminatorColor * terminatorBand * (0.15 + uDetailStrength * 0.1);
 
 float lon = atan(worldNormal.z, worldNormal.x);
 float lat = asin(clamp(worldNormal.y, -1.0, 1.0));
@@ -1533,7 +1533,7 @@ uniform float uWireStrength;`
       backgroundImageUrl={null}
       globeImageUrl={EARTH_TEXTURE_URL}
       globeMaterial={globeMaterial ?? undefined}
-      showGraticules={!paperEnabled}
+      showGraticules={false}
       showAtmosphere={settings.showAtmosphere}
       atmosphereColor={atmosphereColor}
       atmosphereAltitude={atmosphereAltitude}
